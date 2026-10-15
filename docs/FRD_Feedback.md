@@ -32,6 +32,9 @@ Then add a rule
 
 This revision is important because status transitions are central to the system’s workflow.
 
+## Our take on 1:
+Accept, we agree with the fact that there needs to be defined control statuses and permitted transitions for all five categories. 
+
 
 ## 2. Clarify the difference between “status,” “outcome,” and “completion”
 
@@ -58,6 +61,9 @@ State whether recovery amount means:
 - Net recovery after repair and disposal costs.
 
 - Something else.
+
+## Our take on 2:
+Accept, we will further clarify and define the difference between status, outcome, and completition. This change will remove ambiguity and confusion from the project without requiring too much work.
 
 
 ## 3. Improve the financial data model
@@ -94,6 +100,8 @@ Suggested additional requirement:
 
 Also clarify that net recovery should normally be calculated, not stored, because it depends on multiple underlying records and should remain accurate if permitted adjustments occur.
 
+## Our take on 3:
+Accept, turn RecoveryAmount field with three new fields: RestockEstimatedValue, LiquidationProceeds, and DisposalCost. 
 
 ## 4. Reconsider “at most one vendor claim”
 
@@ -117,6 +125,8 @@ If the intended constraint is only one active claim, use:
 
 **BR-10:** A ReturnItem may have at most one active VendorClaim. A new claim may be created only after the prior claim is settled, denied, cancelled, or closed.
 
+## Our take on 4:
+Partially accept, stick with the original design of having at most one vendor claim per return item for its lifetime. This is to elimnate unecessary complexity or confusion.
 
 ## 5. Clarify repair-parts handling
 
@@ -134,6 +144,9 @@ Because the current project already focuses on tracking returned inventory rathe
 Assumption: The system records total labor and total parts cost for each work order. Inventory of repair parts and individual part consumption are outside the scope of this project.
 
 This prevents an ERD reviewer from expecting an additional parts inventory subsystem.
+
+## Our take on 5:
+Accept, we will clarify that each work order records aggregate labor and parts costs. Individual replacement parts, quantities, and parts inventory management are outside the scope of this project.
 
 
 ## 6. Clarify “one unit per return line”
@@ -158,6 +171,8 @@ ReturnItem contains a QuantityReceived field, but serialized items must have Qua
 
 The current one-unit-per-line decision is easier for inspection, repair, movement, and serial tracking, so it is a reasonable choice.
 
+## Our take on 6:
+Accept, each ReturnItem represents exactly one unit per return line. Multiple units of the same product will use separate ReturnItem records with unique line numbers under the same return.
 
 ## 7. Address the inspection model more precisely
 
@@ -185,6 +200,8 @@ Suggested business rule:
 
 This makes FR-06 much easier to implement and test.
 
+## Our take on 7:
+Accept, we will classify inspections by type and associate post-repair inspections with work orders. We will use the existing Inspection entity, with additional attributes and validation, rather than introduce new entities. 
 
 ## 8. Define the location model
 
@@ -224,6 +241,8 @@ Suggested rule:
 
 **BR-12:** Every active ReturnItem shall reference one valid current Location. An InventoryMovement must reference valid source and destination Location records.
 
+## Our take on 8:
+Accept, we will create a centralized location reference table with predefined warehouse areas. Return items and movement records will reference valid location IDs. Detailed shelf level tracking is outside the project scope so it won't be included.
 
 ## 9. Tighten security and authorization details
 
@@ -247,6 +266,8 @@ Suggested additional requirement:
 
 The document should also clarify whether an administrator is allowed to inspect but not modify the audit log. “Read-only” should mean that normal staff cannot insert, update, or delete audit records directly; the database trigger or controlled process creates them.
 
+## Our take on 9:
+Partially accept. We will define clear role permissions and enforce sensitive operations through controlled database procedures and MySQL privileges. We will demonstrate authorized and unauthorized actions, including technician assignment restrictions. A full web-based authentication system is outside our intended implementation scope.
 
 ## 10. Add requirements for reference/lookup data administration
 
@@ -299,3 +320,6 @@ This is especially relevant because deleting a location, grade, or reason that a
 - **BR-12:** Every active ReturnItem shall have one valid current location, and every InventoryMovement shall reference valid source and destination locations.
 
 - **BR-13:** Once a ReturnItem has reached a completed final disposition, it may not be reopened, reassigned, or moved without a manager-authorized correction process that is audited.
+
+## Our take on 10:
+Partially accept. We will define ownership and access restrictions for reference data and initialize controlled values through SQL seed scripts. Full CRUD interfaces for reference-data administration will not be implemented. Existing historical references will be preserved.
