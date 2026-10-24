@@ -1,0 +1,10 @@
+# Local backup and computer metadata
+/archive/
+.DS_Store
+**/.DS_Store
+~$*
+
+# Credentials and local environment files
+.env
+.env.*
+!.env.example
