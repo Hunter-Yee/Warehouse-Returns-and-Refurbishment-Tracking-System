@@ -20,7 +20,7 @@ Present tab 01 (Warehouse workflow) first; tab 02 contains users, roles, audit, 
 
 ## Earlier requirements and feedback
 
-The original [FRD](docs/FRD.md), [PDF](docs/warehouse_returns_functional_requirements.pdf) and [professor feedback](docs/FRD_Feedback.md) are retained for history. Use the current documents linked above for ongoing design and implementation.
+The original [FRD](docs/archive/FRD.md), [PDF](docs/archive/warehouse_returns_functional_requirements.pdf) and [professor feedback](docs/FRD_Feedback.md) are retained for history. Earlier FRD versions are in `docs/archive/`; professor feedback remains in `docs/`. Use the current documents linked above for ongoing design and implementation.
 
 ## Implementation status
 
