@@ -1,4 +1,13 @@
-
-
-order:
-views -> report_queries -> object_validation -> data_validation -> smoke_tests
+00_create_database.sql
+01_schema/010_tables.sql
+02_programmability/010_views.sql
+02_programmability/020_functions.sql
+02_programmability/030_procedures.sql
+02_programmability/040_triggers.sql
+03_security/010_roles.sql
+03_security/020_grants.sql
+04_seed/010_reference_data.sql
+04_seed/020_sample_data.sql
+05_validation/010_object_validation.sql
+05_validation/020_data_validation.sql
+05_validation/030_smoke_tests.sql
