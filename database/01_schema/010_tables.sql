@@ -5,8 +5,9 @@
 -- Business rules spanning tables (roles, transitions, active codes, latest inspections,
 -- concurrent serials, one active repair, atomic movement/audit) REQUIRE procedures/triggers.
 
-CREATE DATABASE IF NOT EXISTS warehouse_returns_demo;
-USE warehouse_returns_demo;
+-- The build script creates/selects the target database before running this file.
+-- For manual Workbench runs, first select a NEW empty schema as default.
+-- Do not add CREATE DATABASE or USE statements here.
 
 CREATE TABLE AppUser (
  UserID INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -15,7 +16,7 @@ CREATE TABLE AppUser (
  IsActive TINYINT(1) NOT NULL DEFAULT 1,
  CONSTRAINT uq_appuser_login UNIQUE (LoginIdentifier),
  CONSTRAINT ck_appuser_active CHECK (IsActive IN (0,1))
-);
+) ENGINE=InnoDB;
 
 CREATE TABLE Role (
  RoleID INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -24,7 +25,7 @@ CREATE TABLE Role (
  IsActive TINYINT(1) NOT NULL DEFAULT 1,
  CONSTRAINT uq_role_code UNIQUE (RoleCode),
  CONSTRAINT ck_role_active CHECK (IsActive IN (0,1))
-);
+) ENGINE=InnoDB;
 
 CREATE TABLE ReferenceValue (
  ReferenceValueID INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -34,7 +35,7 @@ CREATE TABLE ReferenceValue (
  IsActive TINYINT(1) NOT NULL DEFAULT 1,
  CONSTRAINT uq_reference_domain_code UNIQUE (Domain, Code),
  CONSTRAINT ck_reference_active CHECK (IsActive IN (0,1))
-);
+) ENGINE=InnoDB;
 
 CREATE TABLE Vendor (
  VendorID INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -44,7 +45,7 @@ CREATE TABLE Vendor (
  Phone VARCHAR(40) NULL,
  IsActive TINYINT(1) NOT NULL DEFAULT 1,
  CONSTRAINT ck_vendor_active CHECK (IsActive IN (0,1))
-);
+) ENGINE=InnoDB;
 
 CREATE TABLE Location (
  LocationID INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -55,7 +56,7 @@ CREATE TABLE Location (
  CONSTRAINT uq_location_code UNIQUE (LocationCode),
  CONSTRAINT ck_location_active CHECK (IsActive IN (0,1)),
  CONSTRAINT fk_location_type FOREIGN KEY (LocationTypeID) REFERENCES ReferenceValue(ReferenceValueID) ON DELETE RESTRICT
-);
+) ENGINE=InnoDB;
 
 CREATE TABLE Product (
  ProductID INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -68,7 +69,7 @@ CREATE TABLE Product (
  CONSTRAINT ck_product_serial CHECK (SerialRequired IN (0,1)),
  CONSTRAINT ck_product_active CHECK (IsActive IN (0,1)),
  CONSTRAINT fk_product_vendor FOREIGN KEY (VendorID) REFERENCES Vendor(VendorID) ON DELETE RESTRICT
-);
+) ENGINE=InnoDB;
 
 CREATE TABLE ReturnHeader (
  ReturnID INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -78,7 +79,7 @@ CREATE TABLE ReturnHeader (
  CONSTRAINT uq_return_external UNIQUE (ExternalReference),
  CONSTRAINT fk_return_receiver FOREIGN KEY (ReceivingUserID) REFERENCES AppUser(UserID) ON DELETE RESTRICT,
  INDEX ix_return_received (ReceivedAt, ReturnID)
-);
+) ENGINE=InnoDB;
 
 CREATE TABLE UserRole (
  UserID INT UNSIGNED NOT NULL,
@@ -87,7 +88,7 @@ CREATE TABLE UserRole (
  CONSTRAINT fk_userrole_user FOREIGN KEY (UserID) REFERENCES AppUser(UserID) ON DELETE RESTRICT,
  CONSTRAINT fk_userrole_role FOREIGN KEY (RoleID) REFERENCES Role(RoleID) ON DELETE RESTRICT,
  INDEX ix_userrole_role (RoleID)
-);
+) ENGINE=InnoDB;
 
 CREATE TABLE ReturnItem (
  ReturnID INT UNSIGNED NOT NULL,
@@ -119,7 +120,7 @@ CREATE TABLE ReturnItem (
  INDEX ix_item_product_serial_open (ProductID, SerialNumber, CompletionAt),
  INDEX ix_item_status_location (ItemStatusID, CurrentLocationID),
  INDEX ix_item_completion (CompletionAt)
-);
+) ENGINE=InnoDB;
 
 CREATE TABLE SalesSummary (
  ProductID INT UNSIGNED NOT NULL,
@@ -132,7 +133,7 @@ CREATE TABLE SalesSummary (
  CONSTRAINT ck_sales_month_first CHECK (DAYOFMONTH(CalendarMonth) = 1),
  CONSTRAINT fk_sales_product FOREIGN KEY (ProductID) REFERENCES Product(ProductID) ON DELETE RESTRICT,
  CONSTRAINT fk_sales_user FOREIGN KEY (EnteredByUserID) REFERENCES AppUser(UserID) ON DELETE RESTRICT
-);
+) ENGINE=InnoDB;
 
 CREATE TABLE WorkOrder (
  ReturnID INT UNSIGNED NOT NULL,
@@ -155,7 +156,7 @@ CREATE TABLE WorkOrder (
  CONSTRAINT fk_workorder_status FOREIGN KEY (WorkOrderStatusID) REFERENCES ReferenceValue(ReferenceValueID) ON DELETE RESTRICT,
  INDEX ix_workorder_item_status (ReturnID, LineNumber, WorkOrderStatusID),
  INDEX ix_workorder_technician_status (AssignedTechnicianUserID, WorkOrderStatusID)
-);
+) ENGINE=InnoDB;
 
 CREATE TABLE Inspection (
  InspectionID INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -176,7 +177,7 @@ CREATE TABLE Inspection (
  CONSTRAINT fk_inspection_result FOREIGN KEY (InspectionResultID) REFERENCES ReferenceValue(ReferenceValueID) ON DELETE RESTRICT,
  INDEX ix_inspection_item_time (ReturnID, LineNumber, InspectedAt, InspectionID),
  INDEX ix_inspection_workorder (ReturnID, LineNumber, WorkOrderNumber)
-);
+) ENGINE=InnoDB;
 
 CREATE TABLE InventoryMovement (
  MovementID BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -197,7 +198,7 @@ CREATE TABLE InventoryMovement (
  INDEX ix_movement_item_time (ReturnID, LineNumber, MovedAt, MovementID),
  INDEX ix_movement_source (SourceLocationID),
  INDEX ix_movement_destination (DestinationLocationID)
-);
+) ENGINE=InnoDB;
 
 CREATE TABLE VendorClaim (
  ClaimID INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -218,7 +219,7 @@ CREATE TABLE VendorClaim (
  CONSTRAINT fk_claim_vendor FOREIGN KEY (VendorID) REFERENCES Vendor(VendorID) ON DELETE RESTRICT,
  CONSTRAINT fk_claim_status FOREIGN KEY (ClaimStatusID) REFERENCES ReferenceValue(ReferenceValueID) ON DELETE RESTRICT,
  CONSTRAINT fk_claim_user FOREIGN KEY (RecordedByUserID) REFERENCES AppUser(UserID) ON DELETE RESTRICT
-);
+) ENGINE=InnoDB;
 
 CREATE TABLE AuditLog (
  AuditID BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -233,7 +234,7 @@ CREATE TABLE AuditLog (
  CONSTRAINT fk_audit_user FOREIGN KEY (UserID) REFERENCES AppUser(UserID) ON DELETE RESTRICT,
  INDEX ix_audit_entity_time (EntityName, RecordedAt),
  INDEX ix_audit_transaction (TransactionID)
-);
+) ENGINE=InnoDB;
 
 -- Check that exactly 15 base tables were created.
 SELECT COUNT(*) AS table_count FROM information_schema.tables

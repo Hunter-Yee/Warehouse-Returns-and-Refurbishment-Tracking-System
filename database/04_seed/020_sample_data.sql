@@ -2,7 +2,6 @@
 -- Sample baseline data only. These returns have not yet been inspected or processed.
 -- Later, insert inspections, approvals, repairs, movements, claims and audit records
 -- via the controlled procedures/triggers rather than bypassing business rules.
-USE warehouse_returns_demo;
 START TRANSACTION;
 
 INSERT INTO AppUser (LoginIdentifier, DisplayName) VALUES

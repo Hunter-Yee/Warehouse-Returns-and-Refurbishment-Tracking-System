@@ -2,7 +2,6 @@
 -- Warning: the trigger processes one row; multi-step atomicity still requires the caller's transaction.
 -- Do not grant application users direct INSERT on InventoryMovement in the final release.
 -- Replace direct insert demonstrations with a controlled movement procedure before final submission.
-USE warehouse_returns_demo;
 DELIMITER $$
 DROP TRIGGER IF EXISTS trg_movement_before_insert$$
 CREATE TRIGGER trg_movement_before_insert BEFORE INSERT ON InventoryMovement

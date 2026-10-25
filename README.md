@@ -27,3 +27,29 @@ The original [FRD](docs/archive/FRD.md), [PDF](docs/archive/warehouse_returns_fu
 Requirements, ER modeling and technical design are prepared. Schema/sample-data SQL, implemented reports, database controls and live demonstration evidence are still to be built and tested. Design documents do not establish implementation compliance.
 
 Keep editable diagrams, SVG exports and explanations together under docs/. Each group member should commit their own actual contributions. Do not commit credentials or local backup archives.
+
+
+## Building:
+# Warehouse returns: tagged build instructions
+
+## Before building
+
+Install `git`, `bash` and the **MySQL command-line client** (`mysql`) and ensure `git --version`, `bash --version`, and `mysql --version` work in Git Bash on Windows or Terminal on macOS.
+
+## Launch
+
+From your repository root:
+
+```bash
+bash build/build_database.sh Hunter-Yee Warehouse-Returns-and-Refurbishment-Tracking-System v1.0.0 warehouse_returns_test01
+```
+
+Use a NEW database name each run; the script refuses to overwrite an existing database. Build logs live in `.build-work/` (ignored by Git).
+
+## What is verified
+
+The script checks MySQL connectivity, retrieves and verifies an exact Git tag/SHA, validates manifest paths, creates the database, executes **each file completely and in order**, stops at SQL errors, and confirms 15 base tables. Validation queries' result sets go into the build log; an ordinary `SELECT` returning an unexpected value does **not** fail the build automatically. To enforce domain-specific assertions, write test scripts that raise a SQL error on failure (for example inside a stored validation procedure), and later test role, workflow, audit, rollback and performance scenarios separately.
+
+## Compatibility
+
+Tested for Bash syntax and file layout only; no live MySQL server or GitHub repository was available here for an end-to-end build. The Bash script uses arrays and regex supported by macOS's system Bash 3.2 and Git Bash. A fresh build may still expose issues in previously supplied SQL scripts, SQL account setup, or dependencies that require adjustments.

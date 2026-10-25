@@ -1,5 +1,4 @@
 -- Run once on a fresh schema, before 020_sample_data.sql.
-USE warehouse_returns_demo;
 
 INSERT INTO Role (RoleCode, Description) VALUES
  ('Receiving', 'Receive returns and move items'),

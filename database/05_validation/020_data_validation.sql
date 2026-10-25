@@ -1,5 +1,4 @@
 -- Verify initial seed counts and core item relationships.
-USE warehouse_returns_demo;
 SELECT 'AppUser' AS TableName,COUNT(*) AS RowCount FROM AppUser
 UNION ALL SELECT 'Role',COUNT(*) FROM Role
 UNION ALL SELECT 'ReferenceValue',COUNT(*) FROM ReferenceValue

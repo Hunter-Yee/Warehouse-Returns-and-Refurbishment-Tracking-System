@@ -3,7 +3,6 @@
 -- IMPORTANT: USER() login must match an ACTIVE AppUser.LoginIdentifier.
 -- Create separate limited local MySQL logins matching inspector01/manager01/receiving01.
 -- Do not call as root for business-role testing. Direct table grants must be limited separately.
-USE warehouse_returns_demo;
 DELIMITER $$
 
 DROP PROCEDURE IF EXISTS sp_record_initial_inspection$$
@@ -149,7 +148,6 @@ BEGIN
 END$$
 DELIMITER ;
 
-USE warehouse_returns_demo;
 DELIMITER $$
 
 DROP PROCEDURE IF EXISTS sp_assign_repair$$
