@@ -1,6 +1,5 @@
 -- Warehouse Returns: reusable reporting views
 -- Run after 010_tables.sql and both seed files. MySQL 8.0.16+.
-USE warehouse_returns_demo;
 
 -- Nonfinancial operational overview. Reporting queries can apply filters.
 CREATE OR REPLACE VIEW vw_open_items AS

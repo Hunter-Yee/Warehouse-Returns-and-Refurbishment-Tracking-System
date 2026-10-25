@@ -1,5 +1,4 @@
 -- Safe read-only smoke tests. These do not change sample data.
-USE warehouse_returns_demo;
 SELECT COUNT(*) AS OpenItems FROM vw_open_items; -- expected 7 initially
 SELECT COUNT(*) AS ReturnRateMonthRecords FROM SalesSummary; -- expected 5 initially
 SELECT COUNT(*) AS CompletedItems FROM ReturnItem WHERE CompletionAt IS NOT NULL; -- expected 0 initially
@@ -17,7 +16,6 @@ JOIN Product p ON p.ProductID=s.ProductID ORDER BY p.SKU;
 -- FRD 2.1 reports RQ-01 through RQ-05. Run AFTER 010_views.sql.
 -- These are SELECT demonstrations, not stored objects. Review result tabs in Workbench.
 -- Demo timestamps stored as UTC; set connection time zone before running reports.
-USE warehouse_returns_demo;
 SET time_zone = '+00:00';
 
 -- RQ-01 Open returns, oldest first. Add AND ItemStatus='...' / LocationCode='...' for filters.

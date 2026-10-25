@@ -1,10 +1,12 @@
-# Local backup and computer metadata
-/archive/
-.DS_Store
-**/.DS_Store
-~$*
-
-# Credentials and local environment files
+# Local credentials and environment overrides
 .env
 .env.*
 !.env.example
+config.env
+**/config.env
+**/*.local.env
+
+# Local build output
+.build-work/
+logs/
+*.log

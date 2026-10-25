@@ -1,7 +1,5 @@
 -- 010_roles.sql: Database roles and test login accounts
 -- MySQL 8.0+ Role-Based Access Control (RBAC)
-USE warehouse_returns_demo;
-
 -- 1. Create database roles matching business roles
 CREATE ROLE IF NOT EXISTS 'role_receiving';
 CREATE ROLE IF NOT EXISTS 'role_inspector';

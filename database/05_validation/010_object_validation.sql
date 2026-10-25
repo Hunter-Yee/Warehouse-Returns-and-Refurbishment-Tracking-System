@@ -1,6 +1,4 @@
 -- Verify required objects are present. Query results are evidence; inspect expected counts.
-USE warehouse_returns_demo;
-
 -- 1. Base tables verification (expected: 15 tables)
 SELECT COUNT(*) AS BaseTableCount FROM information_schema.TABLES
  WHERE TABLE_SCHEMA=DATABASE() AND TABLE_TYPE='BASE TABLE';
