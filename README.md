@@ -15,7 +15,7 @@ Current design: **FRD 2.1, ERD 2.1 and Technical Design 1.0**, synchronized Octo
 - [Users and reference data SVG](docs/warehouse_returns_erd_v2_1_support.svg)
 - [ER diagram explanation and attribute dictionary](docs/warehouse_returns_erd_v2_1.md)
 - [Midterm readiness checklist](planning/warehouse_returns_midterm_readiness_checklist.md)
-- [Build Script Demo Video](CS437Demo.mp4)
+- [Build Script Demo Video](CS437Demo.mp4) or https://youtu.be/ivnjOL8iWFI
 
 Present tab 01 (Warehouse workflow) first; tab 02 contains users, roles, audit, reference values and attribute examples. Both tabs belong to the same system. `NULL` means a field may be empty until applicable; it is not an unfinished placeholder.
 
