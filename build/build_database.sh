@@ -22,6 +22,19 @@ TARGET_DB=$4
   exit 2
 }
 
+# If running on Windows / Git Bash and mysql isn't in PATH yet, check standard MySQL directories
+if ! command -v mysql >/dev/null 2>&1; then
+  for p in "/c/Program Files/MySQL/MySQL Server 8.0/bin" \
+           "/c/Program Files/MySQL/MySQL Server 26.7/bin" \
+           "/c/Program Files/MySQL/MySQL Workbench 8.0" \
+           "C:/Program Files/MySQL/MySQL Server 8.0/bin"; do
+    if [ -d "$p" ]; then
+      export PATH="$PATH:$p"
+      break
+    fi
+  done
+fi
+
 for command_name in git mysql mktemp; do
   command -v "$command_name" >/dev/null 2>&1 || {
     echo "Missing tool: $command_name (install it and add it to PATH)" >&2
@@ -39,6 +52,11 @@ if [ -f "$CONFIG_FILE" ]; then
   source "$CONFIG_FILE"
   set +a
 fi
+# Strip Windows CRLF carriage returns if present
+DB_HOST="${DB_HOST%$'\r'}"
+DB_PORT="${DB_PORT%$'\r'}"
+DB_ADMIN_USER="${DB_ADMIN_USER%$'\r'}"
+DB_ADMIN_PASSWORD="${DB_ADMIN_PASSWORD%$'\r'}"
 : "${DB_HOST:?Set DB_HOST in build/config.env or environment}"
 : "${DB_PORT:=3306}"
 : "${DB_ADMIN_USER:?Set DB_ADMIN_USER}"
@@ -63,7 +81,12 @@ mysql_admin() {
 }
 
 log "Starting build for $OWNER/$REPO tag=$TAG database=$TARGET_DB"
-mysql_admin --execute='SELECT VERSION();' >>"$LOG" 2>>"$ERROR_LOG" || fail 'Cannot connect to MySQL'
+mysql_admin --execute='SELECT VERSION();' >>"$LOG" 2>>"$ERROR_LOG" || {
+  if grep -qi microsoft /proc/version 2>/dev/null; then
+    echo "Tip: You are running inside WSL. MySQL is installed on Windows, so 127.0.0.1 is trying to connect inside Linux. Please run this command in Git Bash instead of WSL." >&2
+  fi
+  fail 'Cannot connect to MySQL'
+}
 
 # GitHub authentication for private repositories should use Git's local credential manager.
 log "Retrieving repository"
