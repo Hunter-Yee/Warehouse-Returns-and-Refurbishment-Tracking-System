@@ -23,16 +23,16 @@ SELECT TABLE_NAME,INDEX_NAME,COLUMN_NAME,SEQ_IN_INDEX
 SELECT ROUTINE_NAME,ROUTINE_TYPE FROM information_schema.ROUTINES
  WHERE ROUTINE_SCHEMA=DATABASE() ORDER BY ROUTINE_NAME;
 
--- Phase 3 Procedures (sp_record_initial_inspection, sp_approve_disposition)
+-- Phase 3 Procedures (sp_register_return, sp_record_initial_inspection, sp_approve_disposition)
 SELECT ROUTINE_NAME,ROUTINE_TYPE FROM information_schema.ROUTINES
  WHERE ROUTINE_SCHEMA=DATABASE() AND ROUTINE_NAME IN
- ('sp_record_initial_inspection','sp_approve_disposition') ORDER BY ROUTINE_NAME;
+ ('sp_register_return','sp_register_single_return','sp_record_initial_inspection','sp_approve_disposition') ORDER BY ROUTINE_NAME;
 
--- Phase 4 Procedures (8 additional operations)
+-- Phase 4 Procedures
 SELECT ROUTINE_NAME, ROUTINE_TYPE FROM information_schema.ROUTINES
  WHERE ROUTINE_SCHEMA=DATABASE() AND ROUTINE_NAME IN
  ('sp_assign_repair','sp_start_repair','sp_complete_repair','sp_record_postrepair_inspection',
- 'sp_move_item','sp_submit_claim','sp_approve_claim','sp_settle_claim') ORDER BY ROUTINE_NAME;
+ 'sp_move_item','sp_submit_claim','sp_approve_claim','sp_settle_claim','sp_enter_monthly_sales') ORDER BY ROUTINE_NAME;
 
 -- 5. Triggers verification
 SELECT TRIGGER_NAME,EVENT_OBJECT_TABLE,EVENT_MANIPULATION,ACTION_TIMING FROM information_schema.TRIGGERS

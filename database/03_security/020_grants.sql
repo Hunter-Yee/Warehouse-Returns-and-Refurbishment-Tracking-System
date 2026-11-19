@@ -13,9 +13,11 @@ GRANT SELECT ON Role TO 'role_receiving', 'role_inspector', 'role_technician', '
 GRANT SELECT ON vw_open_items TO 'role_receiving', 'role_inspector', 'role_technician', 'role_manager';
 
 -- 3. Receiving Role Privileges
-GRANT SELECT ON ReturnHeader TO 'role_receiving';
-GRANT SELECT ON ReturnItem TO 'role_receiving';
+GRANT SELECT, INSERT ON ReturnHeader TO 'role_receiving';
+GRANT SELECT, INSERT ON ReturnItem TO 'role_receiving';
 GRANT INSERT ON InventoryMovement TO 'role_receiving';
+GRANT EXECUTE ON PROCEDURE sp_register_return TO 'role_receiving';
+GRANT EXECUTE ON PROCEDURE sp_register_single_return TO 'role_receiving';
 GRANT EXECUTE ON PROCEDURE sp_move_item TO 'role_receiving';
 
 -- 4. Inspector Role Privileges
@@ -38,11 +40,12 @@ GRANT SELECT ON Inspection TO 'role_manager';
 GRANT SELECT ON WorkOrder TO 'role_manager';
 GRANT SELECT ON InventoryMovement TO 'role_manager';
 GRANT SELECT ON VendorClaim TO 'role_manager';
-GRANT SELECT ON SalesSummary TO 'role_manager';
+GRANT SELECT, INSERT, UPDATE ON SalesSummary TO 'role_manager';
 GRANT SELECT ON AuditLog TO 'role_manager';
 GRANT SELECT ON vw_item_recovery TO 'role_manager';
 GRANT EXECUTE ON PROCEDURE sp_approve_disposition TO 'role_manager';
 GRANT EXECUTE ON PROCEDURE sp_assign_repair TO 'role_manager';
+GRANT EXECUTE ON PROCEDURE sp_enter_monthly_sales TO 'role_manager';
 GRANT EXECUTE ON PROCEDURE sp_submit_claim TO 'role_manager';
 GRANT EXECUTE ON PROCEDURE sp_approve_claim TO 'role_manager';
 GRANT EXECUTE ON PROCEDURE sp_settle_claim TO 'role_manager';
