@@ -68,10 +68,10 @@ INSERT INTO tmp_wr_presentation_checks
 SELECT 'Required active products', COUNT(*) = 4
 FROM Product WHERE SKU IN ('LAP-100','KBD-500','MON-200','TOA-300') AND IsActive=1;
 INSERT INTO tmp_wr_presentation_checks
-SELECT 'Active receiving01 business identity', COUNT(*) = 1
+SELECT 'Active wr_receiving01 business identity', COUNT(*) = 1
 FROM AppUser u JOIN UserRole ur ON ur.UserID=u.UserID
 JOIN Role r ON r.RoleID=ur.RoleID
-WHERE u.LoginIdentifier='receiving01' AND u.IsActive=1
+WHERE u.LoginIdentifier='wr_receiving01' AND u.IsActive=1
  AND r.RoleCode='Receiving' AND r.IsActive=1;
 INSERT INTO tmp_wr_presentation_checks
 SELECT 'Intake location', COUNT(*) = 1 FROM Location
@@ -104,7 +104,7 @@ SELECT f.ExternalReference,
        TIMESTAMPADD(DAY, -CAST(f.DaysAgo AS SIGNED), UTC_TIMESTAMP(6)),
        u.UserID
 FROM tmp_wr_presentation_returns f
-JOIN AppUser u ON u.LoginIdentifier='receiving01'
+JOIN AppUser u ON u.LoginIdentifier='wr_receiving01'
 LEFT JOIN ReturnHeader existing ON existing.ExternalReference=f.ExternalReference
 WHERE existing.ReturnID IS NULL
 ORDER BY f.ExternalReference;

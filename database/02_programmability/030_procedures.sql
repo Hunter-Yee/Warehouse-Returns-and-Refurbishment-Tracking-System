@@ -1,7 +1,7 @@
 -- Warehouse Returns: first controlled business procedures (MySQL 8.0.16+)
 -- RUN AFTER schema, reference data and staff accounts; run before triggers.
 -- IMPORTANT: USER() login must match an ACTIVE AppUser.LoginIdentifier.
--- Create separate limited local MySQL logins matching inspector01/manager01/receiving01.
+-- Create separate limited local MySQL logins matching wr_inspector01/wr_manager01/wr_receiving01.
 -- Do not call as root for business-role testing. Direct table grants must be limited separately.
 DELIMITER $$
 

@@ -181,7 +181,16 @@ For class-sized data, do not add caches, partitions, replicas or scheduled summa
 
 ## 8. Build plan and verification evidence
 
-Proposed future deliverables are `sql/01_schema.sql`, `02_seed.sql`, `03_controls.sql`, `04_reports.sql`, `05_demo.sql`, `06_security.sql` and a build instruction/script. These are planned paths, not existing files. Bootstrap tables/reference users first, install controls, then create operational sample scenarios through controlled routines. Provision database accounts locally without committing passwords. A clean build targets a new dedicated demonstration database and stops on errors; never drop an arbitrary existing database automatically.
+Database deliverables are structured under `database/` and executed deterministically via `build/build_database.sh` according to `database/manifest.txt`:
+1. `00_create_database.sql`: Confirms target schema context.
+2. `01_schema/010_tables.sql`: 15 base DDL tables with primary keys, composite keys, foreign keys, and CHECK constraints.
+3. `02_programmability/010_views.sql`: `vw_open_items` (operational) and `vw_item_recovery` (manager financial recovery).
+4. `02_programmability/020_functions.sql`: Helper stored routines documentation.
+5. `02_programmability/030_procedures.sql`: Transactional stored procedures for intake, inspections, disposition approvals, repairs, movements, claims, and sales summaries.
+6. `02_programmability/040_triggers.sql`: Inventory movement automation triggers and append-only triggers on `AuditLog`.
+7. `03_security/010_roles.sql` & `020_grants.sql`: Five functional roles (`wr_role_*`), demonstration login accounts, and least-privilege grants.
+8. `04_seed/010_reference_data.sql` & `020_sample_data.sql`: 50 domain codes, baseline users, vendors, products, locations, and return scenarios.
+9. `05_validation/`: Object count verification (`010_object_validation.sql`), seed data checks (`020_data_validation.sql`), and report queries (`030_smoke_tests.sql` for RQ-01–05).
 
 | Demonstration | Evidence to collect | FRD link |
 | --- | --- | --- |
@@ -209,7 +218,7 @@ Sample scenarios include direct restock, successful repair, failed repair then l
 | FR-09/10 | Sections 5/7 search, safe views and five reports. |
 | FR-15 | Sections 4/5/6 reference and account maintenance. |
 
-Next: build the SQL schema/sample data using the synchronized composite work-order key, then implement and run the demonstrations. Update the progress report with actual outputs and member contributions. GitHub publication, server setup, architecture-diagram artifacts, SQL implementation and test execution have not been performed by writing this document.
+Midterm deliverables are completed and verified across schema, programmability, security, seed data, and validation tests. Subsequent milestones focus on service/API development (Weeks 7–8), web interface prototyping (Week 8), and integration, security, and performance testing (Weeks 9–10).
 
 ## References
 
