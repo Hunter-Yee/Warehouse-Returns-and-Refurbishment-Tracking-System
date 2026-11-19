@@ -32,7 +32,8 @@ SELECT ROUTINE_NAME,ROUTINE_TYPE FROM information_schema.ROUTINES
 SELECT ROUTINE_NAME, ROUTINE_TYPE FROM information_schema.ROUTINES
  WHERE ROUTINE_SCHEMA=DATABASE() AND ROUTINE_NAME IN
  ('sp_assign_repair','sp_start_repair','sp_complete_repair','sp_record_postrepair_inspection',
- 'sp_move_item','sp_submit_claim','sp_approve_claim','sp_settle_claim','sp_enter_monthly_sales') ORDER BY ROUTINE_NAME;
+  'sp_record_final_inspection','sp_move_item','sp_submit_claim','sp_approve_claim',
+  'sp_settle_claim','sp_enter_monthly_sales') ORDER BY ROUTINE_NAME;
 
 -- 5. Triggers verification
 SELECT TRIGGER_NAME,EVENT_OBJECT_TABLE,EVENT_MANIPULATION,ACTION_TIMING FROM information_schema.TRIGGERS
