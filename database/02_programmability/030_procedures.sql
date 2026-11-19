@@ -5,6 +5,155 @@
 -- Do not call as root for business-role testing. Direct table grants must be limited separately.
 DELIMITER $$
 
+DROP PROCEDURE IF EXISTS sp_register_return$$
+CREATE PROCEDURE sp_register_return(
+ IN p_external_ref VARCHAR(100),
+ IN p_items JSON
+)
+SQL SECURITY DEFINER
+BEGIN
+ DECLARE v_actor INT UNSIGNED DEFAULT NULL;
+ DECLARE v_return_id INT UNSIGNED DEFAULT NULL;
+ DECLARE v_item_count INT DEFAULT 0;
+ DECLARE v_idx INT DEFAULT 0;
+ DECLARE v_sku VARCHAR(64);
+ DECLARE v_serial VARCHAR(100);
+ DECLARE v_reason_code VARCHAR(32);
+ DECLARE v_location_code VARCHAR(40);
+ DECLARE v_product_id INT UNSIGNED;
+ DECLARE v_serial_req TINYINT(1);
+ DECLARE v_reason_id INT UNSIGNED;
+ DECLARE v_status_id INT UNSIGNED;
+ DECLARE v_location_id INT UNSIGNED;
+ DECLARE v_open_serial_count INT DEFAULT 0;
+ DECLARE v_tx VARCHAR(64);
+ DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN ROLLBACK; RESIGNAL; END;
+
+ START TRANSACTION;
+
+ SELECT u.UserID INTO v_actor FROM AppUser u
+ JOIN UserRole ur ON ur.UserID=u.UserID
+ JOIN Role r ON r.RoleID=ur.RoleID
+ WHERE u.LoginIdentifier=SUBSTRING_INDEX(USER(),'@',1)
+   AND u.IsActive=1 AND r.IsActive=1 AND r.RoleCode='Receiving'
+ LIMIT 1;
+ IF v_actor IS NULL THEN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Active Receiving login required';
+ END IF;
+
+ IF p_external_ref IS NULL OR TRIM(p_external_ref)='' THEN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='External reference is required';
+ END IF;
+
+ IF EXISTS (SELECT 1 FROM ReturnHeader WHERE ExternalReference=p_external_ref) THEN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Duplicate external reference';
+ END IF;
+
+ IF p_items IS NULL OR JSON_TYPE(p_items) <> 'ARRAY' THEN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Items array is required';
+ END IF;
+
+ SET v_item_count = JSON_LENGTH(p_items);
+ IF v_item_count = 0 THEN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Return must contain at least one item line';
+ END IF;
+
+ SELECT ReferenceValueID INTO v_status_id FROM ReferenceValue
+ WHERE Domain='ItemStatus' AND Code='AwaitingInspection' AND IsActive=1 LIMIT 1;
+ IF v_status_id IS NULL THEN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Missing active AwaitingInspection status';
+ END IF;
+
+ INSERT INTO ReturnHeader(ExternalReference, ReceivedAt, ReceivingUserID)
+ VALUES (p_external_ref, UTC_TIMESTAMP(6), v_actor);
+ SET v_return_id = LAST_INSERT_ID();
+ SET v_tx = UUID();
+
+ WHILE v_idx < v_item_count DO
+  SET v_sku = TRIM(JSON_UNQUOTE(JSON_EXTRACT(p_items, CONCAT('$[', v_idx, '].sku'))));
+  SET v_serial = JSON_UNQUOTE(JSON_EXTRACT(p_items, CONCAT('$[', v_idx, '].serial')));
+  IF v_serial = 'null' OR TRIM(v_serial) = '' THEN
+   SET v_serial = NULL;
+  ELSE
+   SET v_serial = UPPER(TRIM(v_serial));
+  END IF;
+  SET v_reason_code = TRIM(JSON_UNQUOTE(JSON_EXTRACT(p_items, CONCAT('$[', v_idx, '].reason'))));
+  SET v_location_code = TRIM(JSON_UNQUOTE(JSON_EXTRACT(p_items, CONCAT('$[', v_idx, '].location'))));
+  IF v_location_code IS NULL OR v_location_code = 'null' OR v_location_code = '' THEN
+   SET v_location_code = 'INT-01';
+  END IF;
+
+  SET v_product_id = NULL;
+  SET v_serial_req = NULL;
+  SELECT ProductID, SerialRequired INTO v_product_id, v_serial_req
+  FROM Product WHERE SKU=v_sku AND IsActive=1 FOR UPDATE;
+  IF v_product_id IS NULL THEN
+   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Invalid or inactive product SKU';
+  END IF;
+
+  IF v_serial_req = 1 AND v_serial IS NULL THEN
+   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Serial number required for this product';
+  END IF;
+
+  IF v_serial IS NOT NULL THEN
+   SELECT COUNT(*) INTO v_open_serial_count
+   FROM ReturnItem
+   WHERE ProductID=v_product_id AND SerialNumber=v_serial AND CompletionAt IS NULL;
+   IF v_open_serial_count > 0 THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Product and serial number already has an open return item';
+   END IF;
+  END IF;
+
+  SET v_reason_id = NULL;
+  SELECT ReferenceValueID INTO v_reason_id FROM ReferenceValue
+  WHERE Domain='ReturnReason' AND Code=v_reason_code AND IsActive=1 LIMIT 1;
+  IF v_reason_id IS NULL THEN
+   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Invalid or inactive return reason';
+  END IF;
+
+  SET v_location_id = NULL;
+  SELECT LocationID INTO v_location_id FROM Location
+  WHERE LocationCode=v_location_code AND IsActive=1 LIMIT 1;
+  IF v_location_id IS NULL THEN
+   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Invalid or inactive location';
+  END IF;
+
+  INSERT INTO ReturnItem(ReturnID, LineNumber, ProductID, SerialNumber, ReturnReasonID, ItemStatusID, CurrentLocationID)
+  VALUES (v_return_id, v_idx + 1, v_product_id, v_serial, v_reason_id, v_status_id, v_location_id);
+
+  INSERT INTO AuditLog(UserID, RecordedAt, Action, EntityName, RecordKey, OldValues, NewValues, TransactionID)
+  VALUES (v_actor, UTC_TIMESTAMP(6), 'ITEM_INTAKE', 'ReturnItem',
+   JSON_OBJECT('ReturnID', v_return_id, 'LineNumber', v_idx + 1), NULL,
+   JSON_OBJECT('SKU', v_sku, 'SerialNumber', v_serial, 'Status', 'AwaitingInspection', 'Location', v_location_code), v_tx);
+
+  SET v_idx = v_idx + 1;
+ END WHILE;
+
+ INSERT INTO AuditLog(UserID, RecordedAt, Action, EntityName, RecordKey, OldValues, NewValues, TransactionID)
+ VALUES (v_actor, UTC_TIMESTAMP(6), 'RETURN_REGISTERED', 'ReturnHeader',
+  JSON_OBJECT('ReturnID', v_return_id), NULL,
+  JSON_OBJECT('ExternalReference', p_external_ref, 'ItemCount', v_item_count), v_tx);
+
+ COMMIT;
+ SELECT v_return_id AS ReturnID;
+END$$
+
+DROP PROCEDURE IF EXISTS sp_register_single_return$$
+CREATE PROCEDURE sp_register_single_return(
+ IN p_external_ref VARCHAR(100),
+ IN p_sku VARCHAR(64),
+ IN p_serial VARCHAR(100),
+ IN p_reason_code VARCHAR(32),
+ IN p_location_code VARCHAR(40)
+)
+SQL SECURITY DEFINER
+BEGIN
+ CALL sp_register_return(
+  p_external_ref,
+  JSON_ARRAY(JSON_OBJECT('sku', p_sku, 'serial', p_serial, 'reason', p_reason_code, 'location', p_location_code))
+ );
+END$$
+
 DROP PROCEDURE IF EXISTS sp_record_initial_inspection$$
 CREATE PROCEDURE sp_record_initial_inspection(
  IN p_return_id INT UNSIGNED,
@@ -375,6 +524,62 @@ BEGIN
  UPDATE VendorClaim SET ClaimStatusID=v_new,SettlementAmount=p_amount,SettledAt=UTC_TIMESTAMP(6) WHERE ClaimID=p_claim_id;
  INSERT INTO AuditLog(UserID,RecordedAt,Action,EntityName,RecordKey,OldValues,NewValues,TransactionID)
  VALUES(v_actor,UTC_TIMESTAMP(6),'CLAIM_SETTLED','VendorClaim',JSON_OBJECT('ClaimID',p_claim_id),JSON_OBJECT('Status','Approved'),JSON_OBJECT('Status','Settled','Amount',p_amount),UUID());
+ COMMIT;
+END$$
+
+DROP PROCEDURE IF EXISTS sp_enter_monthly_sales$$
+CREATE PROCEDURE sp_enter_monthly_sales(
+ IN p_sku VARCHAR(64),
+ IN p_month DATE,
+ IN p_units_sold INT UNSIGNED,
+ IN p_source_ref VARCHAR(150)
+)
+SQL SECURITY DEFINER
+BEGIN
+ DECLARE v_actor INT UNSIGNED DEFAULT NULL;
+ DECLARE v_product_id INT UNSIGNED DEFAULT NULL;
+ DECLARE v_tx VARCHAR(64);
+ DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN ROLLBACK; RESIGNAL; END;
+
+ IF p_month IS NULL OR DAYOFMONTH(p_month) <> 1 THEN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Calendar month must be first day of month (YYYY-MM-01)';
+ END IF;
+ IF p_units_sold IS NULL THEN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Units sold is required';
+ END IF;
+
+ START TRANSACTION;
+
+ SELECT u.UserID INTO v_actor FROM AppUser u
+ JOIN UserRole ur ON ur.UserID=u.UserID
+ JOIN Role r ON r.RoleID=ur.RoleID
+ WHERE u.LoginIdentifier=SUBSTRING_INDEX(USER(),'@',1)
+   AND u.IsActive=1 AND r.IsActive=1 AND r.RoleCode='Manager'
+ LIMIT 1;
+ IF v_actor IS NULL THEN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Manager login required';
+ END IF;
+
+ SELECT ProductID INTO v_product_id FROM Product
+ WHERE SKU=p_sku AND IsActive=1 LIMIT 1;
+ IF v_product_id IS NULL THEN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Invalid or inactive product SKU';
+ END IF;
+
+ INSERT INTO SalesSummary (ProductID, CalendarMonth, UnitsSold, SourceReference, EnteredByUserID, UpdatedAt)
+ VALUES (v_product_id, p_month, p_units_sold, p_source_ref, v_actor, UTC_TIMESTAMP(6))
+ ON DUPLICATE KEY UPDATE
+   UnitsSold=VALUES(UnitsSold),
+   SourceReference=VALUES(SourceReference),
+   EnteredByUserID=VALUES(EnteredByUserID),
+   UpdatedAt=VALUES(UpdatedAt);
+
+ SET v_tx = UUID();
+ INSERT INTO AuditLog(UserID, RecordedAt, Action, EntityName, RecordKey, OldValues, NewValues, TransactionID)
+ VALUES (v_actor, UTC_TIMESTAMP(6), 'SALES_ENTERED', 'SalesSummary',
+  JSON_OBJECT('ProductID', v_product_id, 'CalendarMonth', CAST(p_month AS CHAR)), NULL,
+  JSON_OBJECT('UnitsSold', p_units_sold, 'SourceReference', p_source_ref), v_tx);
+
  COMMIT;
 END$$
 DELIMITER ;

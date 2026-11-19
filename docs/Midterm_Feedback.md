@@ -1,11 +1,7 @@
 # Midterm Presentation Feedback & Action Plan
 
 **Project**: Warehouse Returns and Refurbishment Tracking System  
-**Authors**: Rajdeep Villuri and Hunter Yee  
-**Course**: CS437 — Database Systems Implementations  
-**Status**: Action Plan & Fix Specification  
-
-This document records the professor's feedback following our midterm presentation, provides our detailed analysis and root-cause diagnosis for each item, and outlines our concrete implementation fixes across the database schema, stored procedures, triggers, security grants, and project documentation.
+**Authors**: Rajdeep Villuri and Hunter Yee    
 
 ---
 
