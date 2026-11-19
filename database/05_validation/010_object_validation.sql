@@ -39,7 +39,8 @@ SELECT TRIGGER_NAME,EVENT_OBJECT_TABLE,EVENT_MANIPULATION,ACTION_TIMING FROM inf
  WHERE TRIGGER_SCHEMA=DATABASE() ORDER BY TRIGGER_NAME;
 SELECT TRIGGER_NAME,EVENT_MANIPULATION,ACTION_TIMING FROM information_schema.TRIGGERS
  WHERE TRIGGER_SCHEMA=DATABASE() AND TRIGGER_NAME IN
- ('trg_movement_before_insert','trg_movement_after_insert') ORDER BY TRIGGER_NAME;
+ ('trg_movement_before_insert','trg_movement_after_insert',
+  'trg_auditlog_before_update','trg_auditlog_before_delete') ORDER BY TRIGGER_NAME;
 
 -- 6. Operational row metrics
 SELECT 'Repair order rows' AS metric,COUNT(*) AS total FROM WorkOrder

@@ -65,4 +65,18 @@ BEGIN
  JSON_OBJECT('LocationID',NEW.SourceLocationID),
  JSON_OBJECT('LocationID',NEW.DestinationLocationID,'MovementType',v_type),UUID());
 END$$
+
+DROP TRIGGER IF EXISTS trg_auditlog_before_update$$
+CREATE TRIGGER trg_auditlog_before_update BEFORE UPDATE ON AuditLog
+FOR EACH ROW
+BEGIN
+ SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='AuditLog is append-only: updates are not permitted';
+END$$
+
+DROP TRIGGER IF EXISTS trg_auditlog_before_delete$$
+CREATE TRIGGER trg_auditlog_before_delete BEFORE DELETE ON AuditLog
+FOR EACH ROW
+BEGIN
+ SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='AuditLog is append-only: deletions are not permitted';
+END$$
 DELIMITER ;

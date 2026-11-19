@@ -214,7 +214,7 @@ CREATE TABLE VendorClaim (
  ClaimReference VARCHAR(150) NULL,
  CONSTRAINT uq_claim_one_per_item UNIQUE (ReturnID, LineNumber),
  CONSTRAINT ck_claim_requested CHECK (RequestedAmount > 0),
- CONSTRAINT ck_claim_settlement CHECK (SettlementAmount IS NULL OR SettlementAmount > 0),
+ CONSTRAINT ck_claim_settlement CHECK (SettlementAmount IS NULL OR (SettlementAmount > 0 AND SettlementAmount <= RequestedAmount)),
  CONSTRAINT fk_claim_item FOREIGN KEY (ReturnID, LineNumber) REFERENCES ReturnItem(ReturnID, LineNumber) ON DELETE RESTRICT,
  CONSTRAINT fk_claim_vendor FOREIGN KEY (VendorID) REFERENCES Vendor(VendorID) ON DELETE RESTRICT,
  CONSTRAINT fk_claim_status FOREIGN KEY (ClaimStatusID) REFERENCES ReferenceValue(ReferenceValueID) ON DELETE RESTRICT,

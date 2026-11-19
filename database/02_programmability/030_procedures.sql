@@ -512,14 +512,16 @@ CREATE PROCEDURE sp_settle_claim(IN p_claim_id INT UNSIGNED, IN p_amount DECIMAL
 SQL SECURITY DEFINER
 BEGIN
  DECLARE v_actor INT UNSIGNED DEFAULT NULL; DECLARE v_old VARCHAR(32) DEFAULT NULL; DECLARE v_new INT UNSIGNED;
+ DECLARE v_requested DECIMAL(12,2) DEFAULT NULL;
  DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN ROLLBACK; RESIGNAL; END;
  IF p_amount IS NULL OR p_amount<=0 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Settlement must be positive'; END IF;
  START TRANSACTION;
  SELECT u.UserID INTO v_actor FROM AppUser u JOIN UserRole ur ON ur.UserID=u.UserID JOIN Role r ON r.RoleID=ur.RoleID
  WHERE u.LoginIdentifier=SUBSTRING_INDEX(USER(),'@',1) AND u.IsActive=1 AND r.IsActive=1 AND r.RoleCode='Manager' LIMIT 1;
  IF v_actor IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Manager login required'; END IF;
- SELECT s.Code INTO v_old FROM VendorClaim c JOIN ReferenceValue s ON s.ReferenceValueID=c.ClaimStatusID WHERE c.ClaimID=p_claim_id FOR UPDATE;
+ SELECT s.Code, c.RequestedAmount INTO v_old, v_requested FROM VendorClaim c JOIN ReferenceValue s ON s.ReferenceValueID=c.ClaimStatusID WHERE c.ClaimID=p_claim_id FOR UPDATE;
  IF v_old IS NULL OR v_old<>'Approved' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Only approved claims can settle'; END IF;
+ IF p_amount > v_requested THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Settlement cannot exceed requested claim amount'; END IF;
  SELECT ReferenceValueID INTO v_new FROM ReferenceValue WHERE Domain='ClaimStatus' AND Code='Settled' AND IsActive=1;
  UPDATE VendorClaim SET ClaimStatusID=v_new,SettlementAmount=p_amount,SettledAt=UTC_TIMESTAMP(6) WHERE ClaimID=p_claim_id;
  INSERT INTO AuditLog(UserID,RecordedAt,Action,EntityName,RecordKey,OldValues,NewValues,TransactionID)
