@@ -246,8 +246,12 @@ BEGIN
  WHERE i.ReturnID=p_return_id AND i.LineNumber=p_line_number FOR UPDATE;
  IF v_status IS NULL OR v_status <> 'AwaitingDecision' THEN
   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Item must await manager decision'; END IF;
- IF p_outcome NOT IN ('Repair','Restock','Liquidate','Dispose') OR p_amount IS NULL OR p_amount < 0 THEN
-  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Invalid outcome or amount'; END IF;
+ IF p_outcome NOT IN ('Repair','Restock','Liquidate','Dispose') THEN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Invalid outcome'; END IF;
+ IF p_outcome IN ('Restock','Liquidate','Dispose') AND (p_amount IS NULL OR p_amount < 0) THEN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Disposition outcome requires a non-negative amount'; END IF;
+ IF p_outcome = 'Repair' AND p_amount IS NOT NULL AND p_amount < 0 THEN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Repair amount cannot be negative'; END IF;
  SELECT ReferenceValueID INTO v_outcome_id FROM ReferenceValue
  WHERE Domain='Disposition' AND Code=p_outcome AND IsActive=1 LIMIT 1;
  SELECT ReferenceValueID INTO v_new_status_id FROM ReferenceValue
@@ -292,7 +296,7 @@ BEGIN
  VALUES (v_actor,UTC_TIMESTAMP(6),'DISPOSITION_APPROVED','ReturnItem',
  JSON_OBJECT('ReturnID',p_return_id,'LineNumber',p_line_number),
  JSON_OBJECT('ItemStatus','AwaitingDecision'),
- JSON_OBJECT('Outcome',p_outcome,'Amount',p_amount),v_tx);
+ JSON_OBJECT('Outcome',p_outcome,'Amount',IF(p_outcome='Repair',NULL,p_amount)),v_tx);
  COMMIT;
 END$$
 DELIMITER ;
@@ -434,6 +438,82 @@ BEGIN
  INSERT INTO AuditLog(UserID,RecordedAt,Action,EntityName,RecordKey,OldValues,NewValues,TransactionID)
  VALUES(v_actor,UTC_TIMESTAMP(6),'INSPECTION_CREATED','Inspection',JSON_OBJECT('InspectionID',v_inspection),NULL,
  JSON_OBJECT('Type','PostRepair','WorkOrderNumber',p_order,'Result',p_result,'Grade',p_grade),UUID());
+ COMMIT;
+ SELECT v_inspection AS InspectionID;
+END$$
+
+DROP PROCEDURE IF EXISTS sp_record_final_inspection$$
+CREATE PROCEDURE sp_record_final_inspection(
+ IN p_return_id INT UNSIGNED,
+ IN p_line SMALLINT UNSIGNED,
+ IN p_grade VARCHAR(32),
+ IN p_result VARCHAR(32),
+ IN p_notes TEXT
+)
+SQL SECURITY DEFINER
+BEGIN
+ DECLARE v_actor INT UNSIGNED DEFAULT NULL;
+ DECLARE v_state VARCHAR(32) DEFAULT NULL;
+ DECLARE v_latest INT UNSIGNED DEFAULT NULL;
+ DECLARE v_grade_id INT UNSIGNED DEFAULT NULL;
+ DECLARE v_result_id INT UNSIGNED DEFAULT NULL;
+ DECLARE v_type_id INT UNSIGNED DEFAULT NULL;
+ DECLARE v_next INT UNSIGNED DEFAULT NULL;
+ DECLARE v_inspection INT UNSIGNED;
+ DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN ROLLBACK; RESIGNAL; END;
+
+ START TRANSACTION;
+
+ SELECT u.UserID INTO v_actor FROM AppUser u
+ JOIN UserRole ur ON ur.UserID=u.UserID
+ JOIN Role r ON r.RoleID=ur.RoleID
+ WHERE u.LoginIdentifier=SUBSTRING_INDEX(USER(),'@',1)
+   AND u.IsActive=1 AND r.IsActive=1 AND r.RoleCode='Inspector'
+ LIMIT 1;
+ IF v_actor IS NULL THEN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Inspector login required';
+ END IF;
+
+ SELECT s.Code INTO v_state FROM ReturnItem i
+ JOIN ReferenceValue s ON s.ReferenceValueID=i.ItemStatusID
+ WHERE i.ReturnID=p_return_id AND i.LineNumber=p_line FOR UPDATE;
+ IF v_state IS NULL OR v_state NOT IN ('AwaitingFinalInspection','AwaitingDecision') THEN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Item must be in AwaitingFinalInspection or AwaitingDecision';
+ END IF;
+
+ SELECT WorkOrderNumber INTO v_latest FROM WorkOrder
+ WHERE ReturnID=p_return_id AND LineNumber=p_line AND CompletedAt IS NOT NULL
+ ORDER BY CompletedAt DESC, WorkOrderNumber DESC LIMIT 1;
+
+ SELECT ReferenceValueID INTO v_grade_id FROM ReferenceValue
+ WHERE Domain='ConditionGrade' AND Code=p_grade AND IsActive=1;
+ SELECT ReferenceValueID INTO v_result_id FROM ReferenceValue
+ WHERE Domain='InspectionResult' AND Code=p_result AND IsActive=1;
+ SELECT ReferenceValueID INTO v_type_id FROM ReferenceValue
+ WHERE Domain='InspectionType' AND Code='Final' AND IsActive=1;
+ IF v_grade_id IS NULL OR v_result_id IS NULL OR v_type_id IS NULL THEN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Invalid inspection grade/result/type';
+ END IF;
+
+ INSERT INTO Inspection(ReturnID,LineNumber,InspectorUserID,InspectedAt,InspectionTypeID,ConditionGradeID,InspectionResultID,Notes,WorkOrderNumber)
+ VALUES(p_return_id,p_line,v_actor,UTC_TIMESTAMP(6),v_type_id,v_grade_id,v_result_id,p_notes,v_latest);
+ SET v_inspection=LAST_INSERT_ID();
+
+ IF v_state = 'AwaitingFinalInspection' AND p_result IN ('Pass','Fail') THEN
+  SELECT ReferenceValueID INTO v_next FROM ReferenceValue
+  WHERE Domain='ItemStatus' AND Code='AwaitingDecision' AND IsActive=1;
+  IF v_next IS NULL THEN
+   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='AwaitingDecision status missing';
+  END IF;
+  UPDATE ReturnItem SET ItemStatusID=v_next
+  WHERE ReturnID=p_return_id AND LineNumber=p_line;
+ END IF;
+
+ INSERT INTO AuditLog(UserID,RecordedAt,Action,EntityName,RecordKey,OldValues,NewValues,TransactionID)
+ VALUES(v_actor,UTC_TIMESTAMP(6),'INSPECTION_CREATED','Inspection',
+  JSON_OBJECT('InspectionID',v_inspection),NULL,
+  JSON_OBJECT('Type','Final','WorkOrderNumber',v_latest,'Result',p_result,'Grade',p_grade),UUID());
+
  COMMIT;
  SELECT v_inspection AS InspectionID;
 END$$

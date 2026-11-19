@@ -26,6 +26,7 @@ GRANT SELECT ON ReturnItem TO 'role_inspector';
 GRANT SELECT ON Inspection TO 'role_inspector';
 GRANT EXECUTE ON PROCEDURE sp_record_initial_inspection TO 'role_inspector';
 GRANT EXECUTE ON PROCEDURE sp_record_postrepair_inspection TO 'role_inspector';
+GRANT EXECUTE ON PROCEDURE sp_record_final_inspection TO 'role_inspector';
 
 -- 5. Technician Role Privileges
 GRANT SELECT ON WorkOrder TO 'role_technician';
