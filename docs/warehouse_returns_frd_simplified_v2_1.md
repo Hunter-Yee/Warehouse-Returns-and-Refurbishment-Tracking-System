@@ -39,7 +39,7 @@ High priority supports workflow or required controls; Medium supports retrieval 
 | FR-05 | High | The system shall create a repair order only after Repair approval and record its assigned Technician, status, work details, completion time, and total labor and parts costs. |
 | FR-06 | High | The system shall allow restocking only with Manager approval, grade A or B, and a passing latest applicable inspection. After repair, the check must identify the most recently completed order. |
 | FR-07 | High | The system shall record item movements and atomically update current location, any resulting terminal status, completion time, and audit history. |
-| FR-08 | High | The system shall allow a Manager to record at most one lifetime vendor claim per item, its requested amount and status, and one settlement received. It shall record payments, not process them. |
+| FR-08 | High | The system shall allow a Manager to record at most one lifetime vendor claim per item, its requested amount and status, and one settlement received not exceeding the requested amount. It shall record payments, not process them. |
 | FR-09 | Medium | The system shall search operational records by return ID, SKU, serial number, status, or location, and apply role restrictions to financial details. |
 | FR-10 | Medium | The system shall provide RQ-01 through RQ-05 and allow a Manager to enter one monthly sales summary per product and calendar month. |
 | FR-11 | High | The system shall enforce role permissions and append audit entries identifying the user, time, record, action, and old/new values for protected changes. |
@@ -104,7 +104,7 @@ N:1 reads a 1:N relationship in reverse, such as Inspection to ReturnItem. The E
 
 **BR-05  **Only a Manager approves outcomes. Repaired restock requires new approval and the latest passing PostRepair or Final check, dated at/after completion of the latest order for the same item. Later Fail/Inconclusive blocks restock.
 
-**BR-06  **Amounts cannot be negative; a submitted claim request and a received settlement must be positive. Sold quantities are nonnegative integers. Calculated net recovery may be negative.
+**BR-06  **Amounts cannot be negative; a submitted claim request and a received settlement must be positive, and a settlement cannot exceed the requested claim amount. Sold quantities are nonnegative integers. Calculated net recovery may be negative.
 
 **BR-07  **Each item has at most one active order, meaning Open or InProgress. An order requires Repair approval; only its assigned active Technician may start or complete it.
 
