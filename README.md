@@ -48,7 +48,7 @@ Configure the MySQL server connection prior to building. The script reads option
 ## Credentials and Security
 - **No Committed Secrets**: `build/config.env` contains local administrative credentials and is strictly excluded via `.gitignore`.
 - **Secure Password Handling**: The build script passes credentials to the MySQL client via the internal `MYSQL_PWD` environment variable rather than command-line flags, preventing exposure in process listings (`ps`).
-- **Sample/Demonstration Accounts**: `database/03_security/010_roles.sql` defines 5 functional roles (`role_receiving`, `role_inspector`, `role_technician`, `role_manager`, `role_admin`) and creates 6 sample login accounts matching `AppUser.LoginIdentifier` on `localhost` (`receiving01`, `inspector01`, `technician01`, `technician02`, `manager01`, `admin01`) with assigned default roles for testing and evaluation.
+- **Sample/Demonstration Accounts**: `database/03_security/010_roles.sql` defines 5 functional roles (`wr_role_receiving`, `wr_role_inspector`, `wr_role_technician`, `wr_role_manager`, `wr_role_admin`) and creates 6 sample login accounts matching `AppUser.LoginIdentifier` on `localhost` (`wr_receiving01`, `wr_inspector01`, `wr_technician01`, `wr_technician02`, `wr_manager01`, `wr_admin01`) with assigned default roles for testing and evaluation. Passwords are set during build via `DEMO_PASSWORD` in `build/config.env` rather than committed in source control.
 
 ## Build Command
 Execute the build script from the repository root:

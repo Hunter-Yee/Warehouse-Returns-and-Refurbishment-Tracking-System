@@ -57,6 +57,8 @@ DB_HOST="${DB_HOST%$'\r'}"
 DB_PORT="${DB_PORT%$'\r'}"
 DB_ADMIN_USER="${DB_ADMIN_USER%$'\r'}"
 DB_ADMIN_PASSWORD="${DB_ADMIN_PASSWORD%$'\r'}"
+DEMO_PASSWORD="${DEMO_PASSWORD:-DemoPassword123!}"
+DEMO_PASSWORD="${DEMO_PASSWORD%$'\r'}"
 : "${DB_HOST:?Set DB_HOST in build/config.env or environment}"
 : "${DB_PORT:=3306}"
 : "${DB_ADMIN_USER:?Set DB_ADMIN_USER}"
@@ -130,6 +132,10 @@ for entry in "${SCRIPTS[@]}"; do
   else
     fail "SQL failed: database/$entry (check error log)"
   fi
+done
+
+for u in wr_receiving01 wr_inspector01 wr_technician01 wr_technician02 wr_manager01 wr_admin01; do
+  mysql_admin --execute="ALTER USER IF EXISTS '$u'@'localhost' IDENTIFIED BY '$DEMO_PASSWORD';" >>"$LOG" 2>>"$ERROR_LOG" || true
 done
 
 TABLES=$(mysql_admin --skip-column-names --database="$TARGET_DB" --execute="SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_type='BASE TABLE';" 2>>"$ERROR_LOG") || fail 'Final verification failed'
