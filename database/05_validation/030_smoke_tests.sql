@@ -51,8 +51,9 @@ SELECT x.EventTime, x.EventType, x.EventDetails, x.StaffName FROM (
  SELECT a.RecordedAt, a.Action, a.EntityName, u.DisplayName, 4, CAST(a.AuditID AS CHAR)
  FROM AuditLog a JOIN AppUser u ON u.UserID=a.UserID
  WHERE a.EntityName='ReturnItem'
-   AND JSON_UNQUOTE(JSON_EXTRACT(a.RecordKey,'$.ReturnID'))=CAST(@report_return_id AS CHAR)
-   AND JSON_UNQUOTE(JSON_EXTRACT(a.RecordKey,'$.LineNumber'))=CAST(@report_line_no AS CHAR)
+   -- Generated key columns use ix_audit_entity_record (seek), not a JSON parse per row.
+   AND a.AuditReturnID=@report_return_id
+   AND a.AuditLineNumber=@report_line_no
 ) x
 ORDER BY x.EventTime, x.TieBreak, x.EventID;
 -- NOTE: This RQ-02 starter includes inspection, work-order creation, movements and item audits.
@@ -113,3 +114,12 @@ ORDER BY ReceivedAt,ReturnID,LineNumber;
 EXPLAIN SELECT * FROM vw_open_items ORDER BY ReceivedAt, ReturnID, LineNumber;
 -- When supported by the installed MySQL Server version:
 -- EXPLAIN ANALYZE SELECT * FROM vw_open_items ORDER BY ReceivedAt, ReturnID, LineNumber;
+
+-- RQ-02 audit branch: expect key=ix_audit_entity_record, type=ref, rows ~= events for one item.
+-- (Before this index the plan used ix_audit_entity_time and examined every ReturnItem audit row.)
+EXPLAIN SELECT a.RecordedAt, a.Action, a.EntityName
+FROM AuditLog a
+WHERE a.EntityName='ReturnItem'
+  AND a.AuditReturnID=@report_return_id
+  AND a.AuditLineNumber=@report_line_no
+ORDER BY a.RecordedAt;
