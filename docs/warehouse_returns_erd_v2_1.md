@@ -348,8 +348,10 @@ Receiving / Inspector / Technician / Manager / Administrator; controlled permiss
 | — | OldValues | JSON NULL |
 | — | NewValues | JSON NULL |
 | — | TransactionID | V64 |
+| — | AuditReturnID | INT NULL (generated from RecordKey) |
+| — | AuditLineNumber | SMALLINT NULL (generated from RecordKey) |
 
-Append-only, written by trusted operations. RecordKey is a description, not a generic FK.
+Append-only, written by trusted operations. RecordKey is a description, not a generic FK. AuditReturnID/AuditLineNumber are virtual generated columns that exist only to index per-item history lookups.
 
 ### ReferenceValue
 

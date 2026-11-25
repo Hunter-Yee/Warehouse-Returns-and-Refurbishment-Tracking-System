@@ -174,7 +174,7 @@ Use EXPLAIN on representative queries before adding more indexes. Initial candid
 | InventoryMovement | (ReturnID, LineNumber, MovedAt, MovementID): ordered history; source/destination FK indexes. |
 | VendorClaim | Unique item pair already supports item claim lookup. |
 | SalesSummary | Composite PK already supports product/month retrieval. |
-| AuditLog | (EntityName, RecordedAt): history filtering; (TransactionID): transaction evidence. JSON record keys are resolved carefully by the timeline query. |
+| AuditLog | (EntityName, RecordedAt): history filtering; (TransactionID): transaction evidence; (EntityName, AuditReturnID, AuditLineNumber, RecordedAt): per-item history. AuditReturnID/AuditLineNumber are VIRTUAL generated columns extracted from the JSON RecordKey, so the RQ-02 timeline and audit trail lookups seek one item's rows instead of parsing RecordKey on every audit row for the entity. |
 | UserRole | Composite PK for user's roles; ensure a RoleID-leading index for the Role FK. |
 
 For class-sized data, do not add caches, partitions, replicas or scheduled summary tables. Batch fictional-data loads in bounded transactions, paginate long histories, and stream large extracts. Measure writes/deletes as well as reads because extra indexes increase maintenance cost. Report measured results only after the database runs.
