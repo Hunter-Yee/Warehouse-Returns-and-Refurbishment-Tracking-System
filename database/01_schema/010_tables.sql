@@ -231,8 +231,17 @@ CREATE TABLE AuditLog (
  OldValues JSON NULL,
  NewValues JSON NULL,
  TransactionID VARCHAR(64) NOT NULL,
+ -- Performance: expose the JSON record key as indexable columns so per-record history
+ -- lookups (RQ-02 item timeline, audit trail screen) seek instead of parsing every
+ -- RecordKey for the entity. VIRTUAL = computed on read, no extra row storage; the
+ -- secondary index below materializes the values. NULL when the key has no such field.
+ AuditReturnID INT UNSIGNED GENERATED ALWAYS AS
+   (CAST(JSON_UNQUOTE(JSON_EXTRACT(RecordKey, '$.ReturnID')) AS UNSIGNED)) VIRTUAL,
+ AuditLineNumber SMALLINT UNSIGNED GENERATED ALWAYS AS
+   (CAST(JSON_UNQUOTE(JSON_EXTRACT(RecordKey, '$.LineNumber')) AS UNSIGNED)) VIRTUAL,
  CONSTRAINT fk_audit_user FOREIGN KEY (UserID) REFERENCES AppUser(UserID) ON DELETE RESTRICT,
  INDEX ix_audit_entity_time (EntityName, RecordedAt),
+ INDEX ix_audit_entity_record (EntityName, AuditReturnID, AuditLineNumber, RecordedAt),
  INDEX ix_audit_transaction (TransactionID)
 ) ENGINE=InnoDB;
 
