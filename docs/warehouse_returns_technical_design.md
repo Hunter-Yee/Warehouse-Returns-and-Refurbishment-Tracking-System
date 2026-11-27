@@ -119,6 +119,8 @@ Do not store database passwords in AppUser or source files. Use client prompts/l
 
 ## 6. Controlled writes, transactions and audit
 
+> **Implemented audit design (final project):** every core table has a temporal history table written by triggers in the same transaction, with an append-only guard, a shared per-transaction ID, and a paged audit trail grid. See [audit_trail_design.md](audit_trail_design.md). `AuditLog` remains as the log of business actions; the history tables are the record of data versions.
+
 Public write procedures own the transaction boundary and are called without an existing caller transaction. Shared internal validation routines do not independently commit. Unexpected SQL errors exit through ROLLBACK followed by RESIGNAL; expected business rejections use SIGNAL with a useful message. Keep DDL/build actions separate from operational transactions.
 
 For writes to existing items, acquire locks in this order where needed: authenticated account/role rows, relevant reference rows, Product, ReturnItem, then its work-order/claim/location rows in stable key order. Every routine uses the same ordering for shared resources. Reference/user deactivation uses matching locking checks and blocks when active work depends on the row. A deadlock or timeout rolls the procedure transaction back; the client can retry the complete operation after re-reading state.
