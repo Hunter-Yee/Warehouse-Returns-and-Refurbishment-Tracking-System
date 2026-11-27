@@ -37,7 +37,7 @@ The original [FRD](docs/archive/FRD.md), [PDF](docs/archive/warehouse_returns_fu
 ## Repository Information
 - **GitHub Repository**: `Hunter-Yee/Warehouse-Returns-and-Refurbishment-Tracking-System`
 - **Retrieval Mechanism**: The build script retrieves an isolated, exact copy using `git clone --quiet --no-checkout`, fetches the specific tag reference (`refs/tags/<TAG>`), checks it out detached into an isolated `.build-work/` directory, and verifies the resolved tag and commit SHA before proceeding.
-- **Release Tag to Use**: `v1.0.0`
+- **Release Tag to Use**: `v1.1.0`
 
 ## Database Configuration
 Configure the MySQL server connection prior to building. The script reads optional environment variables or local settings from `build/config.env` (copy from [`build/config.example.env`](build/config.example.env)):
@@ -56,17 +56,17 @@ Configure the MySQL server connection prior to building. The script reads option
 Execute the build script from the repository root:
 
 ```bash
-bash build/build_database.sh Hunter-Yee Warehouse-Returns-and-Refurbishment-Tracking-System v1.0.0 warehouse_returns_test01
+bash build/build_database.sh Hunter-Yee Warehouse-Returns-and-Refurbishment-Tracking-System v1.1.0 warehouse_returns_test01
 ```
 or
 ```bash
-& "C:\Program Files\Git\bin\bash.exe" build/build_database.sh Hunter-Yee Warehouse-Returns-and-Refurbishment-Tracking-System v1.0.0 warehouse_returns_demo01
+& "C:\Program Files\Git\bin\bash.exe" build/build_database.sh Hunter-Yee Warehouse-Returns-and-Refurbishment-Tracking-System v1.1.0 warehouse_returns_demo01
 ```
 
 ### Argument Explanations
 1. `OWNER`: GitHub username or organization (`Hunter-Yee`).
 2. `REPO`: Repository name (`Warehouse-Returns-and-Refurbishment-Tracking-System`).
-3. `TAG`: Exact Git release tag to build (`v1.0.0`).
+3. `TAG`: Exact Git release tag to build (`v1.1.0`).
 4. `TARGET_DB`: Fresh target schema name (e.g., `warehouse_returns_test01`).
 
 ## Execution Order
@@ -115,7 +115,7 @@ The build process enforces strict guardrails to prevent corrupted or partial ins
 - **Logging**: All execution output, query results, and errors are cleanly separated and recorded in `.build-work/<REPO>-<TAG>-<ID>/build.log` and `error.log`.
 
 ## Reproducibility
-- Builds are locked to an immutable release tag (`v1.0.0`) and verify the exact git commit SHA upon checkout.
+- Builds are locked to an immutable release tag (`v1.1.0`) and verify the exact git commit SHA upon checkout.
 - Order is deterministically driven by the repository's `database/manifest.txt`.
 - Each build executes in an isolated temporary working directory with dedicated timestamped `build.log` and `error.log` files, ensuring complete traceability.
 
