@@ -138,9 +138,11 @@ for u in wr_receiving01 wr_inspector01 wr_technician01 wr_technician02 wr_manage
   mysql_admin --execute="ALTER USER IF EXISTS '$u'@'localhost' IDENTIFIED BY '$DEMO_PASSWORD';" >>"$LOG" 2>>"$ERROR_LOG" || true
 done
 
-TABLES=$(mysql_admin --skip-column-names --database="$TARGET_DB" --execute="SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_type='BASE TABLE';" 2>>"$ERROR_LOG") || fail 'Final verification failed'
-log "Completed scripts=${#SCRIPTS[@]} base_tables=$TABLES"
+TABLES=$(mysql_admin --skip-column-names --database="$TARGET_DB" --execute="SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_type='BASE TABLE' AND table_name NOT LIKE '%History';" 2>>"$ERROR_LOG") || fail 'Final verification failed'
+HISTORY_TABLES=$(mysql_admin --skip-column-names --database="$TARGET_DB" --execute="SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_type='BASE TABLE' AND table_name LIKE '%History';" 2>>"$ERROR_LOG") || fail 'Final verification failed'
+log "Completed scripts=${#SCRIPTS[@]} base_tables=$TABLES history_tables=$HISTORY_TABLES"
 [ "$TABLES" = '15' ] || fail "Expected 15 base tables, found $TABLES"
+[ "$HISTORY_TABLES" = '14' ] || fail "Expected 14 history tables, found $HISTORY_TABLES"
 log 'BUILD SUCCEEDED (SQL scripts ran; review validation query outputs and business tests in build.log)'
 echo "Build log: $LOG"
 echo "Error log: $ERROR_LOG"

@@ -245,7 +245,7 @@ CREATE TABLE AuditLog (
  INDEX ix_audit_transaction (TransactionID)
 ) ENGINE=InnoDB;
 
--- Check that exactly 15 base tables were created.
+-- Check that exactly 15 base tables were created (history tables come next, in 020).
 SELECT COUNT(*) AS table_count FROM information_schema.tables
 WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE';
 SELECT table_name FROM information_schema.tables

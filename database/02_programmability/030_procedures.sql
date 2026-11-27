@@ -67,7 +67,7 @@ BEGIN
  INSERT INTO ReturnHeader(ExternalReference, ReceivedAt, ReceivingUserID)
  VALUES (p_external_ref, UTC_TIMESTAMP(6), v_actor);
  SET v_return_id = LAST_INSERT_ID();
- SET v_tx = UUID();
+ SET v_tx = fn_audit_transaction_id();
 
  WHILE v_idx < v_item_count DO
   SET v_sku = TRIM(JSON_UNQUOTE(JSON_EXTRACT(p_items, CONCAT('$[', v_idx, '].sku'))));
@@ -200,7 +200,7 @@ BEGIN
  InspectionTypeID,ConditionGradeID,InspectionResultID,Notes,WorkOrderNumber)
  VALUES (p_return_id,p_line_number,v_actor,UTC_TIMESTAMP(6),v_type,v_grade,v_result,p_notes,NULL);
  SET v_inspection_id=LAST_INSERT_ID();
- SET v_tx=UUID();
+ SET v_tx=fn_audit_transaction_id();
  IF p_result_code IN ('Pass','Fail') THEN
   SELECT ReferenceValueID INTO v_next_status FROM ReferenceValue
   WHERE Domain='ItemStatus' AND Code='AwaitingDecision' AND IsActive=1 LIMIT 1;
@@ -291,7 +291,7 @@ BEGIN
  LiquidationProceeds=IF(p_outcome='Liquidate',p_amount,NULL),
  DisposalCost=IF(p_outcome='Dispose',p_amount,NULL)
  WHERE ReturnID=p_return_id AND LineNumber=p_line_number;
- SET v_tx=UUID();
+ SET v_tx=fn_audit_transaction_id();
  INSERT INTO AuditLog(UserID,RecordedAt,Action,EntityName,RecordKey,OldValues,NewValues,TransactionID)
  VALUES (v_actor,UTC_TIMESTAMP(6),'DISPOSITION_APPROVED','ReturnItem',
  JSON_OBJECT('ReturnID',p_return_id,'LineNumber',p_line_number),
@@ -333,7 +333,7 @@ BEGIN
  VALUES(p_return_id,p_line,v_next,p_technician_id,v_status_id,UTC_TIMESTAMP(6),0,0);
  INSERT INTO AuditLog(UserID,RecordedAt,Action,EntityName,RecordKey,OldValues,NewValues,TransactionID)
  VALUES(v_actor,UTC_TIMESTAMP(6),'REPAIR_ASSIGNED','WorkOrder',JSON_OBJECT('ReturnID',p_return_id,'LineNumber',p_line,'WorkOrderNumber',v_next),NULL,
- JSON_OBJECT('TechnicianUserID',p_technician_id,'Status','Open'),UUID());
+ JSON_OBJECT('TechnicianUserID',p_technician_id,'Status','Open'),fn_audit_transaction_id());
  COMMIT;
  SELECT v_next AS WorkOrderNumber;
 END$$
@@ -364,7 +364,7 @@ BEGIN
  UPDATE ReturnItem SET ItemStatusID=v_istatus WHERE ReturnID=p_return_id AND LineNumber=p_line;
  INSERT INTO AuditLog(UserID,RecordedAt,Action,EntityName,RecordKey,OldValues,NewValues,TransactionID)
  VALUES(v_actor,UTC_TIMESTAMP(6),'REPAIR_STARTED','WorkOrder',JSON_OBJECT('ReturnID',p_return_id,'LineNumber',p_line,'WorkOrderNumber',p_order),
- JSON_OBJECT('Status','Open'),JSON_OBJECT('Status','InProgress'),UUID());
+ JSON_OBJECT('Status','Open'),JSON_OBJECT('Status','InProgress'),fn_audit_transaction_id());
  COMMIT;
 END$$
 
@@ -397,7 +397,7 @@ BEGIN
  UPDATE ReturnItem SET ItemStatusID=v_istatus WHERE ReturnID=p_return_id AND LineNumber=p_line;
  INSERT INTO AuditLog(UserID,RecordedAt,Action,EntityName,RecordKey,OldValues,NewValues,TransactionID)
  VALUES(v_actor,UTC_TIMESTAMP(6),'REPAIR_COMPLETED','WorkOrder',JSON_OBJECT('ReturnID',p_return_id,'LineNumber',p_line,'WorkOrderNumber',p_order),
- JSON_OBJECT('Status','InProgress'),JSON_OBJECT('Status','Completed','Labor',p_labor,'Parts',p_parts),UUID());
+ JSON_OBJECT('Status','InProgress'),JSON_OBJECT('Status','Completed','Labor',p_labor,'Parts',p_parts),fn_audit_transaction_id());
  COMMIT;
 END$$
 
@@ -437,7 +437,7 @@ BEGIN
  END IF;
  INSERT INTO AuditLog(UserID,RecordedAt,Action,EntityName,RecordKey,OldValues,NewValues,TransactionID)
  VALUES(v_actor,UTC_TIMESTAMP(6),'INSPECTION_CREATED','Inspection',JSON_OBJECT('InspectionID',v_inspection),NULL,
- JSON_OBJECT('Type','PostRepair','WorkOrderNumber',p_order,'Result',p_result,'Grade',p_grade),UUID());
+ JSON_OBJECT('Type','PostRepair','WorkOrderNumber',p_order,'Result',p_result,'Grade',p_grade),fn_audit_transaction_id());
  COMMIT;
  SELECT v_inspection AS InspectionID;
 END$$
@@ -512,7 +512,7 @@ BEGIN
  INSERT INTO AuditLog(UserID,RecordedAt,Action,EntityName,RecordKey,OldValues,NewValues,TransactionID)
  VALUES(v_actor,UTC_TIMESTAMP(6),'INSPECTION_CREATED','Inspection',
   JSON_OBJECT('InspectionID',v_inspection),NULL,
-  JSON_OBJECT('Type','Final','WorkOrderNumber',v_latest,'Result',p_result,'Grade',p_grade),UUID());
+  JSON_OBJECT('Type','Final','WorkOrderNumber',v_latest,'Result',p_result,'Grade',p_grade),fn_audit_transaction_id());
 
  COMMIT;
  SELECT v_inspection AS InspectionID;
@@ -564,7 +564,7 @@ BEGIN
  VALUES(p_return_id,p_line,v_vendor,p_requested,v_status,UTC_TIMESTAMP(6),v_actor,p_reference);
  INSERT INTO AuditLog(UserID,RecordedAt,Action,EntityName,RecordKey,OldValues,NewValues,TransactionID)
  VALUES(v_actor,UTC_TIMESTAMP(6),'CLAIM_SUBMITTED','VendorClaim',JSON_OBJECT('ClaimID',LAST_INSERT_ID()),NULL,
- JSON_OBJECT('ReturnID',p_return_id,'LineNumber',p_line,'RequestedAmount',p_requested),UUID());
+ JSON_OBJECT('ReturnID',p_return_id,'LineNumber',p_line,'RequestedAmount',p_requested),fn_audit_transaction_id());
  COMMIT;
 END$$
 
@@ -583,7 +583,7 @@ BEGIN
  SELECT ReferenceValueID INTO v_new FROM ReferenceValue WHERE Domain='ClaimStatus' AND Code='Approved' AND IsActive=1;
  UPDATE VendorClaim SET ClaimStatusID=v_new WHERE ClaimID=p_claim_id;
  INSERT INTO AuditLog(UserID,RecordedAt,Action,EntityName,RecordKey,OldValues,NewValues,TransactionID)
- VALUES(v_actor,UTC_TIMESTAMP(6),'CLAIM_APPROVED','VendorClaim',JSON_OBJECT('ClaimID',p_claim_id),JSON_OBJECT('Status','Submitted'),JSON_OBJECT('Status','Approved'),UUID());
+ VALUES(v_actor,UTC_TIMESTAMP(6),'CLAIM_APPROVED','VendorClaim',JSON_OBJECT('ClaimID',p_claim_id),JSON_OBJECT('Status','Submitted'),JSON_OBJECT('Status','Approved'),fn_audit_transaction_id());
  COMMIT;
 END$$
 
@@ -605,7 +605,7 @@ BEGIN
  SELECT ReferenceValueID INTO v_new FROM ReferenceValue WHERE Domain='ClaimStatus' AND Code='Settled' AND IsActive=1;
  UPDATE VendorClaim SET ClaimStatusID=v_new,SettlementAmount=p_amount,SettledAt=UTC_TIMESTAMP(6) WHERE ClaimID=p_claim_id;
  INSERT INTO AuditLog(UserID,RecordedAt,Action,EntityName,RecordKey,OldValues,NewValues,TransactionID)
- VALUES(v_actor,UTC_TIMESTAMP(6),'CLAIM_SETTLED','VendorClaim',JSON_OBJECT('ClaimID',p_claim_id),JSON_OBJECT('Status','Approved'),JSON_OBJECT('Status','Settled','Amount',p_amount),UUID());
+ VALUES(v_actor,UTC_TIMESTAMP(6),'CLAIM_SETTLED','VendorClaim',JSON_OBJECT('ClaimID',p_claim_id),JSON_OBJECT('Status','Approved'),JSON_OBJECT('Status','Settled','Amount',p_amount),fn_audit_transaction_id());
  COMMIT;
 END$$
 
@@ -656,7 +656,7 @@ BEGIN
    EnteredByUserID=VALUES(EnteredByUserID),
    UpdatedAt=VALUES(UpdatedAt);
 
- SET v_tx = UUID();
+ SET v_tx = fn_audit_transaction_id();
  INSERT INTO AuditLog(UserID, RecordedAt, Action, EntityName, RecordKey, OldValues, NewValues, TransactionID)
  VALUES (v_actor, UTC_TIMESTAMP(6), 'SALES_ENTERED', 'SalesSummary',
   JSON_OBJECT('ProductID', v_product_id, 'CalendarMonth', CAST(p_month AS CHAR)), NULL,

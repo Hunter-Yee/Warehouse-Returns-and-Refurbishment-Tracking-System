@@ -1,11 +1,13 @@
 -- Verify required objects are present. Query results are evidence; inspect expected counts.
--- 1. Base tables verification (expected: 15 tables)
+-- 1. Base tables verification (expected: 15 core tables + 14 history tables)
 SELECT COUNT(*) AS BaseTableCount FROM information_schema.TABLES
- WHERE TABLE_SCHEMA=DATABASE() AND TABLE_TYPE='BASE TABLE';
+ WHERE TABLE_SCHEMA=DATABASE() AND TABLE_TYPE='BASE TABLE' AND TABLE_NAME NOT LIKE '%History';
+SELECT COUNT(*) AS HistoryTableCount FROM information_schema.TABLES
+ WHERE TABLE_SCHEMA=DATABASE() AND TABLE_TYPE='BASE TABLE' AND TABLE_NAME LIKE '%History';
 SELECT TABLE_NAME FROM information_schema.TABLES
  WHERE TABLE_SCHEMA=DATABASE() AND TABLE_TYPE='BASE TABLE' ORDER BY TABLE_NAME;
 
--- 2. Views verification (expected: 2 views after 010_views.sql)
+-- 2. Views verification (expected: 4 views: 2 reporting + 2 audit trail)
 SELECT COUNT(*) AS ViewCount FROM information_schema.VIEWS
  WHERE TABLE_SCHEMA=DATABASE();
 SELECT TABLE_NAME AS ViewName FROM information_schema.VIEWS

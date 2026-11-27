@@ -61,4 +61,10 @@ GRANT SELECT, INSERT, UPDATE ON Product TO 'wr_role_admin';
 GRANT SELECT, INSERT, UPDATE ON Vendor TO 'wr_role_admin';
 GRANT SELECT ON AuditLog TO 'wr_role_admin';
 
+-- 8. Audit trail (history tables are never granted directly; they are written only by triggers)
+-- Every staff role may search an item's audit trail; amounts are shown to Managers only.
+GRANT EXECUTE ON PROCEDURE sp_get_item_audit_trail TO 'wr_role_receiving', 'wr_role_inspector', 'wr_role_technician', 'wr_role_manager', 'wr_role_admin';
+GRANT SELECT ON vw_item_audit_trail TO 'wr_role_manager';
+GRANT SELECT ON vw_master_data_change_history TO 'wr_role_manager', 'wr_role_admin';
+
 FLUSH PRIVILEGES;

@@ -63,7 +63,7 @@ BEGIN
  VALUES (NEW.MovedByUserID,UTC_TIMESTAMP(6),'ITEM_MOVED','ReturnItem',
  JSON_OBJECT('ReturnID',NEW.ReturnID,'LineNumber',NEW.LineNumber),
  JSON_OBJECT('LocationID',NEW.SourceLocationID),
- JSON_OBJECT('LocationID',NEW.DestinationLocationID,'MovementType',v_type),UUID());
+ JSON_OBJECT('LocationID',NEW.DestinationLocationID,'MovementType',v_type),fn_audit_transaction_id());
 END$$
 
 DROP TRIGGER IF EXISTS trg_auditlog_before_update$$
