@@ -132,5 +132,5 @@ ROLLBACK;
 -- Storage cost of each AuditLog index (InnoDB persistent stats; run after ANALYZE TABLE).
 SELECT index_name, ROUND(stat_value * @@innodb_page_size / 1024 / 1024, 2) AS size_mb
 FROM mysql.innodb_index_stats
-WHERE database_name = DATABASE() AND table_name = 'AuditLog' AND stat_name = 'size'
+WHERE database_name = DATABASE() AND LOWER(table_name) = 'auditlog' AND stat_name = 'size' -- macOS stores lowercase names
 ORDER BY index_name;

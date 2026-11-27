@@ -40,21 +40,27 @@ Each `EXPLAIN ANALYZE` step shows `actual time=first..last rows=R loops=L`. Comp
 | Test | Expect |
 | --- | --- |
 | 1 — before (JSON filter) | Index lookup on `EntityName` only, then a filter over all `ReturnItem` audit rows (~300k at default volume), plus a sort. |
-| 2 — after (generated columns) | Index lookup on `ix_audit_entity_record`, ~6 rows, no sort step. |
+| 2 — after (generated columns) | Index lookup on `ix_audit_entity_record`, ~5 rows (a completed unit's `ReturnItem` events), no sort step. |
 | 3 — control (index ignored) | Similar to test 1: the generated columns alone do not help. |
 | Correctness | `BeforeRows = AfterRows` and `MismatchedGeneratedKeys = 0`. |
 | 6 — write cost | Time to insert 10,000 audit rows while maintaining every AuditLog index. |
 
 ## Results
 
-Not yet run. After running, record the measured numbers here, using the saved results file:
+Measured 2026-11-27 on MySQL 8.4.11 (macOS arm64, 512 MB buffer pool), default volume, warm run. Full output: [`results/benchmark_20261127T175725Z.txt`](results/benchmark_20261127T175725Z.txt). The data was loaded by an earlier run, which is why the file's loader section says "Already loaded".
 
 | Measurement | Value |
 | --- | --- |
-| MySQL version | |
-| ReturnItem / AuditLog rows | |
-| Test 1 (before), ms / rows examined | |
-| Test 2 (after), ms / rows examined | |
-| Test 3 (control), ms | |
-| Write cost, 10,000 audit inserts, ms | |
-| `ix_audit_entity_record` size, MB | |
+| MySQL version | 8.4.11 |
+| ReturnItem / AuditLog rows | 100,006 / 451,654 (301,655 `ReturnItem` audit rows) |
+| Test 1 (before, JSON filter) | **181 ms**, 301,655 rows read to return 5 |
+| Test 2 (after, `ix_audit_entity_record`) | **0.014 ms**, 5 rows read to return 5 |
+| Test 3 (control, index ignored) | 205 ms, 301,655 rows read |
+| Correctness | BeforeRows = AfterRows = 5, MismatchedGeneratedKeys = 0 |
+| Full RQ-02 timeline at scale | 0.036 ms |
+| Write cost, 10,000 audit inserts (all indexes) | 64 ms |
+| `ix_audit_entity_record` size | 29.6 MB (vs 75.6 MB clustered PRIMARY) |
+
+**Conclusion:** the per-item audit lookup went from a scan of every `ReturnItem` audit row to an index seek, about 12,000× faster at this volume, and its cost now depends on one item's history instead of the size of the log. Test 3 confirms the gain comes from the index, not the generated columns. The cost is about 30 MB of index and a small extra write per audit insert.
+
+Other plans at this volume: RQ-01 (`vw_open_items`, 70,009 open rows) takes about 160 ms, mostly returning and sorting every open row, which is what paged grid loading in the final project should avoid. RQ-04 for one month (2,510 completed units) takes 5 ms via `ix_item_completion`.
