@@ -1,0 +1,101 @@
+# Audit trail tests  reference=AUD-20261128014416  database=wr_e2e  commit=f64099b
+# MySQL 8.4.11  run at 2026-11-28 01:44:16 UTC
+
+## 1. Workflow as role logins (repair -> post-repair pass -> restock, vendor claim, final move)
+PASS  Receiving registers a 2-line return
+      ReturnID=27
+PASS  Inspector records initial inspection (fail, grade C)
+PASS  Manager approves Repair with no amount (NULL)
+PASS  Manager assigns repair to technician
+PASS  Technician starts repair
+PASS  Technician completes repair (labor 10, parts 25)
+PASS  Inspector records post-repair inspection (pass, grade A)
+PASS  Manager approves Restock at 200
+PASS  Manager submits a 40 vendor claim
+PASS  Manager approves the claim
+PASS  Settlement above the claim is rejected (50 > 40)  -> ERROR 50001 (45001): Settlement cannot exceed requested claim amount
+PASS  Manager settles the claim for 30
+PASS  Receiving makes the final Restock move to SALE-01
+PASS  Unit 1 ends Restocked at SALE-01 with CompletionAt set
+PASS  Net recovery is 195 (200 restock + 30 settled - 10 labor - 25 parts)
+
+## 2. History capture
+PASS  ReturnItemHistory has one version per change of unit 1 (8: intake + 7 status/location changes)
+PASS  Exactly one open version per unit (ValidTo = 9999-12-31)
+PASS  Versions are contiguous: each closed version ends when the next begins
+PASS  The open version matches the live row (status, location, amounts)
+PASS  Every history row of this return records the acting staff member (no setup account)
+PASS  Approval version is attributed to the Manager (Casey Brown)
+
+## 3. One transaction ID per business transaction, shared with AuditLog
+PASS  Intake: both units, the header, and all 3 AuditLog rows share one TransactionID
+PASS  Every history version of this return belongs to a transaction that wrote an AuditLog action
+PASS  Separate procedure calls get different TransactionIDs (12 workflow transactions for unit 1)
+PASS  Final move: movement row, item update and ITEM_MOVED audit share one TransactionID
+      transactions for this return (TransactionID -> AuditLog actions):
+        1835-5  ITEM_INTAKE, RETURN_REGISTERED
+        1838-5  INSPECTION_CREATED
+        1839-5  DISPOSITION_APPROVED
+        1840-5  REPAIR_ASSIGNED
+        1841-5  REPAIR_STARTED
+        1842-5  REPAIR_COMPLETED
+        1843-5  INSPECTION_CREATED
+        1844-5  DISPOSITION_APPROVED
+        1845-5  CLAIM_SUBMITTED
+        1847-5  CLAIM_APPROVED
+        1849-5  CLAIM_SETTLED
+        1852-5  ITEM_MOVED
+
+## 4. Audit trail grid (vw_item_audit_trail)
+PASS  Status changes of unit 1 appear in order: intake -> Restocked
+PASS  Changed rows carry the previous value (OldValue) for each changed attribute
+PASS  Unchanged attributes are not repeated on Changed rows
+PASS  Claim status and settlement appear with the Manager and business action
+PASS  Rejected 50 settlement left no trace in the trail
+PASS  Work order labor/parts and inspections are in the same trail
+
+## 5. Audit trail search procedure (paging + redaction)
+      manager total=56  administrator total=49  view rows=56  financial rows=7
+PASS  Manager sees every trail row, including amounts
+PASS  Administrator sees the redacted trail (no financial rows)
+PASS  Operational roles have no audit review (TDD capability matrix)  -> ERROR 1370 (42000): execute command denied to user 'wr_inspector01'@'localhost' for routine 'wr_e2e.sp_get_ite
+PASS  Paging: page 1 returns 10 rows, last page (6) returns the remainder (6)
+PASS  Pages do not overlap or skip rows (56 distinct rows)
+PASS  Unknown reference is reported  -> ERROR 50004 (45004): Return reference not found
+PASS  Oversized page is rejected  -> ERROR 50001 (45001): Page size must be between 1 and 200
+PASS  History tables are not directly readable by roles  -> ERROR 1142 (42000): SELECT command denied to user 'wr_manager01'@'localhost' for table 'returnitemhistory'
+PASS  Non-managers cannot read the unredacted grid view  -> ERROR 1142 (42000): SELECT command denied to user 'wr_admin01'@'localhost' for table 'vw_item_audit_trail'
+      first page as shown to the Administrator (redacted):
+        2026-11-28 01:44:16.118363	ReturnItem	Unit 27-1	Created	Product	NULL	LAP-100	Morgan Lee
+        2026-11-28 01:44:16.118363	ReturnItem	Unit 27-1	Created	Location	NULL	INT-01	Morgan Lee
+        2026-11-28 01:44:16.118363	ReturnItem	Unit 27-1	Created	ItemStatus	NULL	AwaitingInspection	Morgan Lee
+        2026-11-28 01:44:16.118363	ReturnItem	Unit 27-1	Created	ReturnReason	NULL	Defective	Morgan Lee
+        2026-11-28 01:44:16.118363	ReturnItem	Unit 27-1	Created	SerialNumber	NULL	AUD-20261128014416-SN1	Morgan Lee
+        2026-11-28 01:44:16.156560	Inspection	Inspection 17	Created	Notes	NULL	Battery does not hold charge	Avery Chen
+        2026-11-28 01:44:16.156560	Inspection	Inspection 17	Created	Inspector	NULL	Avery Chen	Avery Chen
+        2026-11-28 01:44:16.156560	Inspection	Inspection 17	Created	InspectedAt	NULL	2026-11-28 01:44:16.156560	Avery Chen
+        2026-11-28 01:44:16.156560	Inspection	Inspection 17	Created	ConditionGrade	NULL	C	Avery Chen
+        2026-11-28 01:44:16.156560	Inspection	Inspection 17	Created	InspectionType	NULL	Initial	Avery Chen
+
+## 6. History is append-only (even for the setup account)
+PASS  UPDATE of a history value is blocked  -> ERROR 50500 (45500): ReturnItemHistory is append-only: only closing the open version is allowed
+PASS  Re-closing an already closed version is blocked  -> ERROR 50500 (45500): ReturnItemHistory is append-only: only closing the open version is allowed
+PASS  DELETE from history is blocked  -> ERROR 50500 (45500): ReturnItemHistory is append-only: deletions are not permitted
+PASS  AuditLog UPDATE is still blocked  -> ERROR 50500 (45500): AuditLog is append-only: updates are not permitted
+
+## 7. Rollback leaves no history
+PASS  Intake with an unknown SKU on line 2 fails  -> ERROR 50001 (45001): Invalid or inactive product SKU
+PASS  Explicit ROLLBACK after a direct update  -> ERROR 1644 (45000): rolled back ok
+PASS  No history rows were left by the failed or rolled-back changes (128 = 128)
+
+## 8. Administration changes are audited
+PASS  Administrator renames location REP-01
+PASS  Master-data history shows the rename, old and new value, by Riley Kim
+PASS  Administrator saves the same value again (no-op update)
+PASS  No-op updates write no history version
+PASS  Administrator restores the original name
+PASS  Administrator removes and re-adds a role assignment
+PASS  Role removal and re-grant are both in the history
+
+## Summary: 54 passed, 0 failed, 0 skipped
+Saved: /Users/rajdeepvilluri/Warehouse-Returns-and-Refurbishment-Tracking-System/tests/results/audit_trail_20261128T014416Z.txt

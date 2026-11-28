@@ -1,9 +1,14 @@
 00_create_database.sql
 01_schema/010_tables.sql
+01_schema/020_history_tables.sql
+01_schema/030_schema_build.sql
+02_programmability/000_routine_owner.sql
 02_programmability/010_views.sql
 02_programmability/020_functions.sql
 02_programmability/030_procedures.sql
 02_programmability/040_triggers.sql
+02_programmability/050_history_triggers.sql
+02_programmability/060_audit_trail.sql
 03_security/010_roles.sql
 03_security/020_grants.sql
 04_seed/010_reference_data.sql

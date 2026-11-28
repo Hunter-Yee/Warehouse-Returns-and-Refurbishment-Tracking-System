@@ -60,27 +60,9 @@ ORDER BY x.EventTime, x.TieBreak, x.EventID;
 -- The final version must also include work-order starts/completions and approval/completion events
 -- consistently with the audit design once those procedures/triggers are implemented.
 
--- RQ-03 Monthly return rates by product/month, including sales-only and returns-only months.
--- Use two separately aggregated sources to avoid multiplication of counts.
-WITH returns_by_month AS (
- SELECT ri.ProductID, DATE_SUB(DATE(rh.ReceivedAt),INTERVAL DAYOFMONTH(rh.ReceivedAt)-1 DAY) AS CalendarMonth,
-        COUNT(*) AS UnitsReturned
- FROM ReturnItem ri JOIN ReturnHeader rh ON rh.ReturnID=ri.ReturnID
- GROUP BY ri.ProductID, DATE_SUB(DATE(rh.ReceivedAt),INTERVAL DAYOFMONTH(rh.ReceivedAt)-1 DAY)
-), keys_by_month AS (
- SELECT ProductID, CalendarMonth FROM returns_by_month
- UNION
- SELECT ProductID, CalendarMonth FROM SalesSummary
-)
-SELECT p.SKU,k.CalendarMonth,COALESCE(r.UnitsReturned,0) AS UnitsReturned,
-       s.UnitsSold,
-       CASE WHEN s.UnitsSold IS NULL OR s.UnitsSold=0 THEN NULL
-            ELSE ROUND(COALESCE(r.UnitsReturned,0)*100.0/s.UnitsSold,2) END AS ReturnRatePct
-FROM keys_by_month k
-JOIN Product p ON p.ProductID=k.ProductID
-LEFT JOIN returns_by_month r ON r.ProductID=k.ProductID AND r.CalendarMonth=k.CalendarMonth
-LEFT JOIN SalesSummary s ON s.ProductID=k.ProductID AND s.CalendarMonth=k.CalendarMonth
-ORDER BY k.CalendarMonth,p.SKU;
+-- RQ-03 Monthly return rates by product/month (vw_monthly_return_rate).
+SELECT SKU, CalendarMonth, UnitsReturned, UnitsSold, ReturnRatePct FROM vw_monthly_return_rate
+ORDER BY CalendarMonth, SKU;
 -- NULL ReturnRatePct means N/A (missing/zero sales), not zero.
 
 -- RQ-04 Financial: Manager access ONLY when DB roles/grants are installed.
@@ -97,14 +79,8 @@ FROM vw_item_recovery
 WHERE CompletionAt >= @period_start AND CompletionAt < @period_end
 GROUP BY FinalOutcome ORDER BY FinalOutcome;
 
--- RQ-05 Completed item turnaround in days by disposition.
-SELECT disp.Code AS FinalOutcome, COUNT(*) AS CompletedItems,
-       ROUND(AVG(TIMESTAMPDIFF(SECOND,rh.ReceivedAt,ri.CompletionAt)/86400.0),2) AS AvgDays
-FROM ReturnItem ri
-JOIN ReturnHeader rh ON rh.ReturnID=ri.ReturnID
-JOIN ReferenceValue disp ON disp.ReferenceValueID=ri.ApprovedOutcomeID AND disp.Domain='Disposition'
-WHERE ri.CompletionAt IS NOT NULL
-GROUP BY disp.Code ORDER BY disp.Code;
+-- RQ-05 Completed item turnaround in days by disposition (vw_turnaround_by_outcome).
+SELECT FinalOutcome, CompletedItems, AvgDays FROM vw_turnaround_by_outcome ORDER BY FinalOutcome;
 -- RQ-05 open delayed items: strictly older than seven elapsed days.
 SELECT * FROM vw_open_items
 WHERE ReceivedAt < UTC_TIMESTAMP() - INTERVAL 7 DAY

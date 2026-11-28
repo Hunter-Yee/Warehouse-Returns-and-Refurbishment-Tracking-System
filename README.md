@@ -4,7 +4,7 @@
 
 Rajdeep Villuri and Hunter Yee
 
-Current design: **FRD 2.1, ERD 2.1 and Technical Design 1.0**, synchronized October 24, 2026. The model has **15 tables**. WorkOrder uses the composite key `(ReturnID, LineNumber, WorkOrderNumber)`; the number is local to each returned item.
+Current design: **FRD 2.1, ERD 2.1 and Technical Design 1.0**, synchronized October 24, 2026. The model has **15 tables**, plus **14 history tables** that keep every version of every row for the audit trail. WorkOrder uses the composite key `(ReturnID, LineNumber, WorkOrderNumber)`; the number is local to each returned item.
 
 ## Current documents
 
@@ -14,8 +14,11 @@ Current design: **FRD 2.1, ERD 2.1 and Technical Design 1.0**, synchronized Octo
 - [Warehouse workflow SVG](docs/warehouse_returns_erd_v2_1_workflow.svg)
 - [Users and reference data SVG](docs/warehouse_returns_erd_v2_1_support.svg)
 - [ER diagram explanation and attribute dictionary](docs/warehouse_returns_erd_v2_1.md)
+- [Audit trail design (history tables, grid view, search procedure)](docs/audit_trail_design.md)
+- [Scaled performance testing and results](database/06_performance/README.md)
 - [Midterm readiness checklist](planning/warehouse_returns_midterm_readiness_checklist.md)
-- [Build Script Demo Video](CS437Demo.mp4) or https://youtu.be/ivnjOL8iWFI
+- [Midterm feedback: resolution, evidence and answers to the professor's questions](docs/midterm_feedback_resolution.md)
+- [Build Script Demo Video](https://youtu.be/ivnjOL8iWFI)
 
 Present tab 01 (Warehouse workflow) first; tab 02 contains users, roles, audit, reference values and attribute examples. Both tabs belong to the same system. `NULL` means a field may be empty until applicable; it is not an unfinished placeholder.
 
@@ -35,7 +38,7 @@ The original [FRD](docs/archive/FRD.md), [PDF](docs/archive/warehouse_returns_fu
 ## Repository Information
 - **GitHub Repository**: `Hunter-Yee/Warehouse-Returns-and-Refurbishment-Tracking-System`
 - **Retrieval Mechanism**: The build script retrieves an isolated, exact copy using `git clone --quiet --no-checkout`, fetches the specific tag reference (`refs/tags/<TAG>`), checks it out detached into an isolated `.build-work/` directory, and verifies the resolved tag and commit SHA before proceeding.
-- **Release Tag to Use**: `v1.0.0`
+- **Release Tag to Use**: `v1.1.0`
 
 ## Database Configuration
 Configure the MySQL server connection prior to building. The script reads optional environment variables or local settings from `build/config.env` (copy from [`build/config.example.env`](build/config.example.env)):
@@ -48,33 +51,40 @@ Configure the MySQL server connection prior to building. The script reads option
 ## Credentials and Security
 - **No Committed Secrets**: `build/config.env` contains local administrative credentials and is strictly excluded via `.gitignore`.
 - **Secure Password Handling**: The build script passes credentials to the MySQL client via the internal `MYSQL_PWD` environment variable rather than command-line flags, preventing exposure in process listings (`ps`).
+- **Locked until a password is set**: the demo logins are created `ACCOUNT LOCK`ed and the build unlocks them only after setting `DEMO_PASSWORD`, failing if it cannot. There is no default password; set your own in `build/config.env` (the example's `change_me_locally` placeholder is rejected).
+- **Routine owner**: every view, routine and trigger runs as `wr_owner@localhost`, a locked least-privileged account, not as the build account.
+- **One build per server by default**: MySQL accounts and roles are server-wide. If `wr_*` accounts already serve another existing schema, the build stops instead of silently resetting their passwords and widening their access. Drop the old schema, use another server, or set `ALLOW_SHARED_ACCOUNTS=1` to share them deliberately.
 - **Sample/Demonstration Accounts**: `database/03_security/010_roles.sql` defines 5 functional roles (`wr_role_receiving`, `wr_role_inspector`, `wr_role_technician`, `wr_role_manager`, `wr_role_admin`) and creates 6 sample login accounts matching `AppUser.LoginIdentifier` on `localhost` (`wr_receiving01`, `wr_inspector01`, `wr_technician01`, `wr_technician02`, `wr_manager01`, `wr_admin01`) with assigned default roles for testing and evaluation. Passwords are set during build via `DEMO_PASSWORD` in `build/config.env` rather than committed in source control.
 
 ## Build Command
 Execute the build script from the repository root:
 
 ```bash
-bash build/build_database.sh Hunter-Yee Warehouse-Returns-and-Refurbishment-Tracking-System v1.0.0 warehouse_returns_test01
+bash build/build_database.sh Hunter-Yee Warehouse-Returns-and-Refurbishment-Tracking-System v1.1.0 warehouse_returns_test01
 ```
 or
 ```bash
-& "C:\Program Files\Git\bin\bash.exe" build/build_database.sh Hunter-Yee Warehouse-Returns-and-Refurbishment-Tracking-System v1.0.0 warehouse_returns_demo01
+& "C:\Program Files\Git\bin\bash.exe" build/build_database.sh Hunter-Yee Warehouse-Returns-and-Refurbishment-Tracking-System v1.1.0 warehouse_returns_demo01
 ```
 
 ### Argument Explanations
 1. `OWNER`: GitHub username or organization (`Hunter-Yee`).
 2. `REPO`: Repository name (`Warehouse-Returns-and-Refurbishment-Tracking-System`).
-3. `TAG`: Exact Git release tag to build (`v1.0.0`).
+3. `TAG`: Exact Git release tag to build (`v1.1.0`).
 4. `TARGET_DB`: Fresh target schema name (e.g., `warehouse_returns_test01`).
 
 ## Execution Order
 The build executes SQL files strictly in the order listed in [`database/manifest.txt`](database/manifest.txt), guaranteeing all dependencies exist before dependents:
 1. `00_create_database.sql`: Confirms database context.
 2. `01_schema/010_tables.sql`: 15 base DDL tables with primary keys, composite keys, foreign keys, and `CHECK` constraints.
-3. `02_programmability/010_views.sql`: Reusable operational and financial reporting views (`vw_open_items`, `vw_item_recovery`).
-4. `02_programmability/020_functions.sql`: Helper stored functions.
+   - `01_schema/020_history_tables.sql`: 14 temporal history tables, one per core table (generated by `tools/generate_history_sql.py`).
+   - `01_schema/030_schema_build.sql`: `SchemaBuild` / `SchemaBuildScript`, the in-database version stamp written by the build.
+3. `02_programmability/000_routine_owner.sql`: Creates the locked routine owner `wr_owner`, then `02_programmability/010_views.sql`: reporting views (`vw_open_items`, `vw_item_recovery`, `vw_monthly_return_rate`, `vw_turnaround_by_outcome`).
+4. `02_programmability/020_functions.sql`: Audit helper functions (acting login/user and shared transaction ID).
 5. `02_programmability/030_procedures.sql`: Workflow stored procedures (`sp_record_initial_inspection`, `sp_approve_disposition`, `sp_assign_repair`, etc.).
 6. `02_programmability/040_triggers.sql`: Movement and audit automation triggers (`trg_movement_before_insert`, `trg_movement_after_insert`).
+   - `02_programmability/050_history_triggers.sql`: History capture triggers and append-only guards (generated).
+   - `02_programmability/060_audit_trail.sql`: Audit trail grid views and the paged `sp_get_item_audit_trail` search procedure.
 7. `03_security/010_roles.sql`: Role definitions and local test login accounts.
 8. `03_security/020_grants.sql`: Principle-of-least-privilege RBAC object grants to roles.
 9. `04_seed/010_reference_data.sql`: Core lookup codes (ItemStatus, Disposition, ConditionGrade, ClaimStatus, Locations).
@@ -110,6 +120,17 @@ The build process enforces strict guardrails to prevent corrupted or partial ins
 - **Logging**: All execution output, query results, and errors are cleanly separated and recorded in `.build-work/<REPO>-<TAG>-<ID>/build.log` and `error.log`.
 
 ## Reproducibility
-- Builds are locked to an immutable release tag (`v1.0.0`) and verify the exact git commit SHA upon checkout.
+- Builds are locked to an immutable release tag (`v1.1.0`) and verify the exact git commit SHA upon checkout.
 - Order is deterministically driven by the repository's `database/manifest.txt`.
 - Each build executes in an isolated temporary working directory with dedicated timestamped `build.log` and `error.log` files, ensuring complete traceability.
+
+## Tests
+
+After a fresh build, run both suites against the new schema (they use `build/config.env` and the demo role logins):
+
+```bash
+bash tests/acceptance_tests.sh warehouse_returns_test01   # FRD AC-01..AC-11 + security checks (needs a fresh build)
+bash tests/audit_trail_tests.sh warehouse_returns_test01  # history tables and audit trail grid
+```
+
+The acceptance suite runs every acceptance criterion as the real role logins through the procedures, including a concurrent duplicate-serial race and the killed-transaction demo. The audit suite checks history capture, transaction grouping, the audit grid, paging, redaction, permission denials, append-only guards, rollback and audited admin changes. Output is saved to `tests/results/`; the latest committed run is 123/123 and 54/54 on MySQL 8.4.11. Errors use the classes in [TDD §6.2](docs/warehouse_returns_technical_design.md).

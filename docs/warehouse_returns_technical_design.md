@@ -117,7 +117,11 @@ Permissions combine when a user holds several active roles. No role implies anot
 
 Do not store database passwords in AppUser or source files. Use client prompts/local credential configuration. Local development is loopback-only; remote deployment requires authenticated encrypted connections. No production deployment or encryption test is claimed here.
 
+**Implemented (midterm feedback):** all views, functions, procedures and triggers declare `DEFINER = 'wr_owner'@'localhost'`, a locked account (no login) holding only `SELECT, INSERT, UPDATE, EXECUTE, TRIGGER` on this schema and `SELECT` on `performance_schema.events_transactions_current`. Demo logins are created `ACCOUNT LOCK`ed and unlocked by the build only after `DEMO_PASSWORD` is set. Non-Manager roles have column-level `SELECT` on `ReturnItem` without the money columns. Because MySQL accounts are server-wide, the build refuses to reuse `wr_*` accounts that already serve another schema unless `ALLOW_SHARED_ACCOUNTS=1`.
+
 ## 6. Controlled writes, transactions and audit
+
+> **Implemented audit design (final project):** every core table has a temporal history table written by triggers in the same transaction, with an append-only guard, a shared per-transaction ID, and a paged audit trail grid. See [audit_trail_design.md](audit_trail_design.md). `AuditLog` remains as the log of business actions; the history tables are the record of data versions.
 
 Public write procedures own the transaction boundary and are called without an existing caller transaction. Shared internal validation routines do not independently commit. Unexpected SQL errors exit through ROLLBACK followed by RESIGNAL; expected business rejections use SIGNAL with a useful message. Keep DDL/build actions separate from operational transactions.
 
@@ -150,6 +154,21 @@ Audit all protected inserts/changes: items, inspections, repairs, movements, app
 | Administration | Administrator; active/history guards; preserve referenced codes/domains; prevent disabling required roles/codes or occupied locations; reassign active work before disabling an account. |
 
 Latest applicable inspection uses InspectedAt and InspectionID as a deterministic tie-breaker. Latest completed order uses CompletedAt and WorkOrderNumber within the item. Event times are assigned/validated by controlled writes, not arbitrary future values. A later Fail/Inconclusive overrides an earlier Pass.
+
+### 6.2 Error and warning catalog (implemented)
+
+Every `SIGNAL` carries a class, so a calling application can decide how to react without parsing message text. Procedures roll back on any error (`EXIT HANDLER ... ROLLBACK; RESIGNAL`), so the class reaches the caller unchanged.
+
+| SQLSTATE | MYSQL_ERRNO | Class | Severity | Meaning | Caller should |
+| --- | --- | --- | --- | --- | --- |
+| `45001` | 50001 | VALIDATION | Error | Bad or missing input (unknown SKU, negative cost, wrong-domain code, bad page size) | Show the message beside the field; user corrects input |
+| `45003` | 50003 | AUTHORIZATION | Error | Login is not an active staff member with the required active role | Deny the action; do not retry |
+| `45004` | 50004 | NOT_FOUND | Error | Referenced item, work order or return does not exist | Refresh the screen or search again |
+| `45009` | 50009 | CONFLICT | Error | Workflow state or business rule refuses the action (wrong status, stale source location, duplicate, reference in use) | Reload current state, then decide |
+| `45500` | 50500 | CRITICAL | Critical | Configuration or integrity failure: required workflow code missing or inactive; attempt to change append-only audit/history | Stop; alert an administrator; log the incident |
+| `01000` | 51000 | WARNING | Warning | Action succeeded but needs attention (partial settlement, Inconclusive result, Open order cancelled by a withdrawal) | Complete normally and show the notice |
+
+MySQL's own errors keep their native codes: `1142/1143/1370` permission denied (the grant layer), `1451` referenced row (foreign key), `3819` check constraint, `1062` duplicate key.
 
 ## 7. Reports, views and indexes
 
@@ -209,16 +228,27 @@ Sample scenarios include direct restock, successful repair, failed repair then l
 
 ## 9. Traceability and remaining work
 
-| Requirement group | Design location |
-| --- | --- |
-| FR-01/02 | Entity dictionary; Sections 3/4/6 intake and serial rules. |
-| FR-03/04/05/06/13/14 | Sections 3.3/4/5/6 inspection, authorization and repair/disposition controls. |
-| FR-07/11 | Sections 5/6/8 identity, trigger, audit and atomic movement. |
-| FR-08/12 | Sections 4/6/7 claim and recovery calculation. |
-| FR-09/10 | Sections 5/7 search, safe views and five reports. |
-| FR-15 | Sections 4/5/6 reference and account maintenance. |
+Each functional requirement maps to the database objects that implement it and the acceptance criteria and automated checks that verify it. All checks run in `tests/acceptance_tests.sh` (AC-01–AC-11) or `tests/audit_trail_tests.sh` (AT). Results are committed in `tests/results/`; latest run: 123/123 and 54/54 on MySQL 8.4.11.
 
-Midterm deliverables are completed and verified across schema, programmability, security, seed data, and validation tests. Subsequent milestones focus on service/API development (Weeks 7–8), web interface prototyping (Week 8), and integration, security, and performance testing (Weeks 9–10).
+| FR | Implementation | Verified by |
+| --- | --- | --- |
+| FR-01 Products | `Product` (unique SKU, vendor, `SerialRequired`); Manager maintenance grant; `ProductHistory` | AC-01, AC-08 (Manager adds products) |
+| FR-02 Intake | `sp_register_return`, `sp_register_single_return`; `Product` row lock for concurrent serials; trimmed unique reference | AC-01 (incl. concurrent race, direct-INSERT denial) |
+| FR-03 Inspections | `Inspection`; `sp_record_initial_inspection`, `sp_record_postrepair_inspection`, `sp_record_final_inspection` | AC-02, AC-04 |
+| FR-04 Approval | `sp_approve_disposition` (Manager, latest conclusive inspection); `sp_withdraw_approval` | AC-02, AC-04 |
+| FR-05 Repair orders | `WorkOrder`; `sp_assign_repair`, `sp_start_repair`, `sp_complete_repair`, `sp_cancel_work_order` | AC-03, AC-02 (cancellation) |
+| FR-06 Restock eligibility | Restock checks in `sp_approve_disposition` (Pass, grade A/B, latest completed order) | AC-04 |
+| FR-07 Movements | `sp_move_item`; `trg_movement_before_insert` (lock, stale source, type/destination/status); `trg_movement_after_insert` | AC-05 (incl. forced error and killed transaction) |
+| FR-08 Vendor claims | `VendorClaim` (one per item, settlement ≤ request); `sp_submit_claim`, `sp_approve_claim`, `sp_settle_claim`, `sp_deny_claim`, `sp_cancel_claim` | AC-06 |
+| FR-09 Search, financial restriction | `vw_open_items`; column-level `ReturnItem` grants; Manager-only financial views | AC-07 |
+| FR-10 Reports, monthly sales | `vw_open_items` (RQ-01), `vw_item_audit_trail`/`sp_get_item_audit_trail` (RQ-02), `vw_monthly_return_rate` (RQ-03), `vw_item_recovery` (RQ-04), `vw_turnaround_by_outcome` (RQ-05); `sp_enter_monthly_sales` | AC-07, AC-08, AC-09 |
+| FR-11 Permissions and audit | Grants per §5; `AuditLog`; 14 history tables + capture triggers; append-only guards; `fn_audit_transaction_id` | AC-10, AT sections 2–7 |
+| FR-12 Recovery values | Value columns on `ReturnItem`/`WorkOrder`/`VendorClaim`; `vw_item_recovery` | AC-09 |
+| FR-13 Inspection types/links | Composite FK `Inspection → WorkOrder (ReturnID, LineNumber, WorkOrderNumber)`; latest-order checks | AC-02, AC-04 |
+| FR-14 Actor, technician scope | `USER()` → active `AppUser` + active role in every procedure; assigned-technician checks | AC-03, security check "MySQL grant alone is not enough" |
+| FR-15 Administration | Admin grants on accounts/roles/locations/reference values; guard triggers `trg_referencevalue_guard_bu`, `trg_location_guard_bu`, `trg_appuser_guard_bu`, `trg_role_guard_bu`; `vw_master_data_change_history` | AC-10, AC-11, AT section 8 |
+
+Remaining work for the final project: application service and GUI (dashboard, drill-down, metadata-driven screens, paged grids, audit trail screen); column-based data warehouse with intraday watermark loads and a reporting database; Testing Plan document; ERD update for the history, build-stamp, warehouse and reporting schemas.
 
 ## References
 

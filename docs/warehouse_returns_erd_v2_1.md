@@ -387,3 +387,12 @@ Normalization rationale: independent product/vendor data, repeating inspection/w
 Start on tab 01 at Return → ReturnItem. Explain one unit per line and the weak composite key. Follow inspections, repair orders and movements; point to the optional single vendor claim. On tab 02, show UserRole resolving M:N and the single ReferenceValue table replacing separate lookup tables. Use the attribute examples to identify key, partial-key, composite, multivalued and derived notation. The lower rows document continued foreign keys; they need not each be narrated during the presentation.
 
 This package supersedes the earlier 24-table ERD for FRD 1.1. Use the files ending in **v2_1** together with FRD 2.1. Earlier output files are retained separately as history.
+
+## Audit history and build-stamp tables (added November 2026)
+
+These support the 15 business entities above and are not new business entities.
+
+- **`<Table>History`** (14 tables, one per business table except `AuditLog`): each row is one version of a business row. Columns: `HistoryID` (PK), every column of the business table, `ValidFrom`, `ValidTo` (open versions end `9999-12-31`), `Operation` (I/U/D), `ChangedByLogin`, `ChangedByUserID` (nullable reference to AppUser), `TransactionID`. Relationship: business row 1 : N history versions (identified by the business key, not an enforced FK, so history survives any later change). Written only by triggers; append-only. See [audit_trail_design.md](audit_trail_design.md).
+- **`SchemaBuild`** 1 : N **`SchemaBuildScript`**: one row per build (release tag, commit SHA, manifest checksum, MySQL version, who and when) and one row per script run (order, path, SHA-256).
+
+The draw.io diagram has not yet been updated with these tables.

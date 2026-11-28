@@ -5,6 +5,8 @@
 
 ---
 
+> **Status (November 27, 2026):** every item below has been resolved and verified. See [midterm_feedback_resolution.md](midterm_feedback_resolution.md) for the evidence, the written gap analysis and scorecard follow-up, and answers to the professor's questions. Note on Item 1: the fix is the intake *procedure*; the direct `INSERT` grants proposed below were **not** kept, because they let Receiving bypass every intake rule.
+
 ## Summary of Action Items
 
 | # | Feedback Area | Root Cause | Action / Resolution | Impacted Files |

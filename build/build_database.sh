@@ -35,6 +35,10 @@ if ! command -v mysql >/dev/null 2>&1; then
   done
 fi
 
+if command -v sha256sum >/dev/null 2>&1; then sha256() { sha256sum "$1" | cut -d' ' -f1; }
+elif command -v shasum >/dev/null 2>&1; then sha256() { shasum -a 256 "$1" | cut -d' ' -f1; }
+else echo 'Missing tool: sha256sum or shasum' >&2; exit 1; fi
+
 for command_name in git mysql mktemp; do
   command -v "$command_name" >/dev/null 2>&1 || {
     echo "Missing tool: $command_name (install it and add it to PATH)" >&2
@@ -57,12 +61,19 @@ DB_HOST="${DB_HOST%$'\r'}"
 DB_PORT="${DB_PORT%$'\r'}"
 DB_ADMIN_USER="${DB_ADMIN_USER%$'\r'}"
 DB_ADMIN_PASSWORD="${DB_ADMIN_PASSWORD%$'\r'}"
-DEMO_PASSWORD="${DEMO_PASSWORD:-DemoPassword123!}"
+DEMO_PASSWORD="${DEMO_PASSWORD:-}"
 DEMO_PASSWORD="${DEMO_PASSWORD%$'\r'}"
+ALLOW_SHARED_ACCOUNTS="${ALLOW_SHARED_ACCOUNTS:-0}"
+ALLOW_SHARED_ACCOUNTS="${ALLOW_SHARED_ACCOUNTS%$'\r'}"
 : "${DB_HOST:?Set DB_HOST in build/config.env or environment}"
 : "${DB_PORT:=3306}"
 : "${DB_ADMIN_USER:?Set DB_ADMIN_USER}"
 : "${DB_ADMIN_PASSWORD:?Set DB_ADMIN_PASSWORD}"
+# Demo role logins are created LOCKED and only unlocked with this password. No default is
+# shipped in source control; choose one locally in build/config.env.
+: "${DEMO_PASSWORD:?Set DEMO_PASSWORD in build/config.env (no default is provided)}"
+[ "$DEMO_PASSWORD" != 'change_me_locally' ] || { echo 'Set DEMO_PASSWORD in build/config.env to your own value' >&2; exit 2; }
+[ "${#DEMO_PASSWORD}" -ge 8 ] || { echo 'DEMO_PASSWORD must be at least 8 characters' >&2; exit 2; }
 [[ "$DB_PORT" =~ ^[0-9]+$ ]] || { echo 'DB_PORT must be numeric' >&2; exit 2; }
 
 # Keep local logs outside the tracked repository and don't expose credentials in CLI arguments.
@@ -120,6 +131,23 @@ done < "$MANIFEST"
 EXISTING=$(mysql_admin --skip-column-names --execute="SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name='${TARGET_DB}';" 2>>"$ERROR_LOG") || fail 'Database existence check failed'
 [ "$EXISTING" = '0' ] || fail "Database $TARGET_DB already exists; choose a different new name"
 
+# MySQL accounts and roles are server-wide, not per schema. Another existing build of this
+# project on the same server shares wr_role_*, wr_owner and the wr_* logins: this build would
+# reset their passwords, and those logins would then reach both schemas. Refuse unless the
+# operator explicitly accepts sharing (ALLOW_SHARED_ACCOUNTS=1 in build/config.env).
+SHARED=$(mysql_admin --skip-column-names --execute="
+SELECT GROUP_CONCAT(DISTINCT p.Db ORDER BY p.Db SEPARATOR ', ') FROM (
+  SELECT Db, User FROM mysql.db UNION ALL SELECT Db, User FROM mysql.tables_priv UNION ALL SELECT Db, User FROM mysql.procs_priv
+) p JOIN information_schema.SCHEMATA s ON s.SCHEMA_NAME = p.Db
+WHERE (p.User LIKE 'wr\\_role\\_%' OR p.User = 'wr_owner') AND p.Db <> '${TARGET_DB}' AND p.Db NOT IN ('performance_schema', 'mysql', 'sys');" 2>>"$ERROR_LOG") || fail 'Shared account check failed'
+if [ -n "$SHARED" ] && [ "$SHARED" != 'NULL' ]; then
+  if [ "$ALLOW_SHARED_ACCOUNTS" = '1' ]; then
+    log "WARNING: wr_* roles/logins are shared with existing schema(s): $SHARED (ALLOW_SHARED_ACCOUNTS=1)"
+  else
+    fail "wr_* roles/logins already serve schema(s) $SHARED on this server. Drop those schemas (and REVOKE their grants), use another MySQL server, or set ALLOW_SHARED_ACCOUNTS=1 to share the accounts deliberately."
+  fi
+fi
+
 log "Creating fresh database $TARGET_DB"
 mysql_admin --execute="CREATE DATABASE \`$TARGET_DB\`;" >>"$LOG" 2>>"$ERROR_LOG" || fail 'CREATE DATABASE failed'
 
@@ -134,13 +162,35 @@ for entry in "${SCRIPTS[@]}"; do
   fi
 done
 
+# Set the demo password and unlock each login. Any failure fails the build: a login must never
+# be left without the intended password. Quotes/backslashes are escaped for the SQL literal.
+SQL_PASSWORD=${DEMO_PASSWORD//\\/\\\\}
+SQL_PASSWORD=${SQL_PASSWORD//\'/\'\'}
 for u in wr_receiving01 wr_inspector01 wr_technician01 wr_technician02 wr_manager01 wr_admin01; do
-  mysql_admin --execute="ALTER USER IF EXISTS '$u'@'localhost' IDENTIFIED BY '$DEMO_PASSWORD';" >>"$LOG" 2>>"$ERROR_LOG" || true
+  mysql_admin --execute="ALTER USER '$u'@'localhost' IDENTIFIED BY '$SQL_PASSWORD' ACCOUNT UNLOCK;" >>"$LOG" 2>>"$ERROR_LOG" \
+    || fail "Could not set the password for $u"
 done
+log "Demo logins unlocked with DEMO_PASSWORD"
 
-TABLES=$(mysql_admin --skip-column-names --database="$TARGET_DB" --execute="SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_type='BASE TABLE';" 2>>"$ERROR_LOG") || fail 'Final verification failed'
-log "Completed scripts=${#SCRIPTS[@]} base_tables=$TABLES"
+# Record the in-database version stamp (SchemaBuild / SchemaBuildScript).
+MANIFEST_SHA=$(sha256 "$MANIFEST")
+STAMP_SQL="INSERT INTO SchemaBuild (ReleaseTag, CommitSHA, ManifestSHA256, ScriptCount, MySQLVersion, BuiltBy, BuiltAt)
+VALUES ('$TAG', '$SHA', '$MANIFEST_SHA', ${#SCRIPTS[@]}, VERSION(), CURRENT_USER(), UTC_TIMESTAMP(6));
+SET @build_id = LAST_INSERT_ID();"
+order=0
+for entry in "${SCRIPTS[@]}"; do
+  order=$((order + 1))
+  STAMP_SQL="$STAMP_SQL
+INSERT INTO SchemaBuildScript (BuildID, RunOrder, ScriptPath, ScriptSHA256) VALUES (@build_id, $order, 'database/$entry', '$(sha256 "$REPO_DIR/database/$entry")');"
+done
+mysql_admin --database="$TARGET_DB" --execute="START TRANSACTION; $STAMP_SQL COMMIT;" >>"$LOG" 2>>"$ERROR_LOG" || fail 'Could not record the schema version stamp'
+log "Recorded SchemaBuild tag=$TAG commit=$SHA scripts=${#SCRIPTS[@]}"
+
+TABLES=$(mysql_admin --skip-column-names --database="$TARGET_DB" --execute="SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_type='BASE TABLE' AND table_name NOT LIKE '%History' AND table_name NOT LIKE 'SchemaBuild%';" 2>>"$ERROR_LOG") || fail 'Final verification failed'
+HISTORY_TABLES=$(mysql_admin --skip-column-names --database="$TARGET_DB" --execute="SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_type='BASE TABLE' AND table_name LIKE '%History';" 2>>"$ERROR_LOG") || fail 'Final verification failed'
+log "Completed scripts=${#SCRIPTS[@]} base_tables=$TABLES history_tables=$HISTORY_TABLES"
 [ "$TABLES" = '15' ] || fail "Expected 15 base tables, found $TABLES"
+[ "$HISTORY_TABLES" = '14' ] || fail "Expected 14 history tables, found $HISTORY_TABLES"
 log 'BUILD SUCCEEDED (SQL scripts ran; review validation query outputs and business tests in build.log)'
 echo "Build log: $LOG"
 echo "Error log: $ERROR_LOG"
