@@ -13,7 +13,7 @@
 
 -- ---------------------------------------------------------------------------
 -- Core entity: one returned unit (ReturnItem) and everything recorded against it.
-CREATE OR REPLACE VIEW vw_item_audit_trail AS
+CREATE OR REPLACE DEFINER='wr_owner'@'localhost' SQL SECURITY DEFINER VIEW vw_item_audit_trail AS
 WITH versions AS (
  SELECT h.ReturnID, h.LineNumber, 'ReturnItem' AS Entity,
         CONCAT('Unit ', h.ReturnID, '-', h.LineNumber) AS EntityKey,
@@ -108,7 +108,7 @@ WHERE NOT (IF(JSON_TYPE(x.OldJson) = 'NULL', NULL, x.OldJson) <=> IF(JSON_TYPE(x
 -- locations, products, vendors, and monthly sales. Same one-row-per-changed-attribute
 -- shape, keyed by entity instead of by unit. Closes the gap where administration
 -- changes wrote no audit at all.
-CREATE OR REPLACE VIEW vw_master_data_change_history AS
+CREATE OR REPLACE DEFINER='wr_owner'@'localhost' SQL SECURITY DEFINER VIEW vw_master_data_change_history AS
 WITH versions AS (
  SELECT 'AppUser' AS Entity, CAST(h.UserID AS CHAR) AS EntityKey, h.HistoryID, h.ValidFrom, h.Operation,
         h.ChangedByLogin, h.ChangedByUserID, h.TransactionID,
@@ -182,7 +182,7 @@ WHERE NOT (IF(JSON_TYPE(x.OldJson) = 'NULL', NULL, x.OldJson) <=> IF(JSON_TYPE(x
 -- (Administrators and other roles get the redacted trail).
 DELIMITER $$
 DROP PROCEDURE IF EXISTS sp_get_item_audit_trail$$
-CREATE PROCEDURE sp_get_item_audit_trail(
+CREATE DEFINER='wr_owner'@'localhost' PROCEDURE sp_get_item_audit_trail(
  IN p_external_ref VARCHAR(100),
  IN p_line_number SMALLINT UNSIGNED,
  IN p_page INT UNSIGNED,
@@ -204,19 +204,19 @@ BEGIN
  WHERE u.LoginIdentifier = fn_audit_login() AND u.IsActive = 1
  GROUP BY u.UserID;
  IF v_actor IS NULL THEN
-  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Active staff login with an active role required';
+  SIGNAL SQLSTATE '45003' SET MYSQL_ERRNO = 50003, MESSAGE_TEXT = 'Active staff login with an active role required';
  END IF;
 
  IF p_page IS NULL OR p_page < 1 THEN
-  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Page must be 1 or greater';
+  SIGNAL SQLSTATE '45001' SET MYSQL_ERRNO = 50001, MESSAGE_TEXT = 'Page must be 1 or greater';
  END IF;
  IF p_page_size IS NULL OR p_page_size < 1 OR p_page_size > 200 THEN
-  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Page size must be between 1 and 200';
+  SIGNAL SQLSTATE '45001' SET MYSQL_ERRNO = 50001, MESSAGE_TEXT = 'Page size must be between 1 and 200';
  END IF;
 
  SELECT ReturnID INTO v_return_id FROM ReturnHeader WHERE ExternalReference = TRIM(p_external_ref);
  IF v_return_id IS NULL THEN
-  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Return reference not found';
+  SIGNAL SQLSTATE '45004' SET MYSQL_ERRNO = 50004, MESSAGE_TEXT = 'Return reference not found';
  END IF;
 
  SELECT COUNT(*) INTO v_total FROM vw_item_audit_trail t

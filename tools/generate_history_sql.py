@@ -142,14 +142,14 @@ def gen_triggers(tables):
                  f"  WHERE {pk_old} AND ValidTo = {OPEN_END};\n")
         out.append(f"""-- {t} -> {h}
 DROP TRIGGER IF EXISTS trg_{s}_hist_ai$$
-CREATE TRIGGER trg_{s}_hist_ai AFTER INSERT ON {t}
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_{s}_hist_ai AFTER INSERT ON {t}
 FOR EACH ROW
 BEGIN
  INSERT INTO {h} ({hist_cols})
  VALUES ({new_vals}, UTC_TIMESTAMP(6), {OPEN_END}, 'I', {who});
 END$$
 DROP TRIGGER IF EXISTS trg_{s}_hist_au$$
-CREATE TRIGGER trg_{s}_hist_au AFTER UPDATE ON {t}
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_{s}_hist_au AFTER UPDATE ON {t}
 FOR EACH ROW
 BEGIN
  DECLARE v_now DATETIME(6) DEFAULT UTC_TIMESTAMP(6);
@@ -159,7 +159,7 @@ BEGIN
  END IF;
 END$$
 DROP TRIGGER IF EXISTS trg_{s}_hist_ad$$
-CREATE TRIGGER trg_{s}_hist_ad AFTER DELETE ON {t}
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_{s}_hist_ad AFTER DELETE ON {t}
 FOR EACH ROW
 BEGIN
  DECLARE v_now DATETIME(6) DEFAULT UTC_TIMESTAMP(6);
@@ -170,19 +170,19 @@ END$$
         frozen = "\n    AND ".join(f"OLD.{c} <=> NEW.{c}" for c in
                                     ["HistoryID"] + cols + [c for c in HISTORY_COLUMNS if c != "ValidTo"])
         out.append(f"""DROP TRIGGER IF EXISTS trg_{s}h_guard_bu$$
-CREATE TRIGGER trg_{s}h_guard_bu BEFORE UPDATE ON {h}
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_{s}h_guard_bu BEFORE UPDATE ON {h}
 FOR EACH ROW
 BEGIN
  IF NOT (OLD.ValidTo = {OPEN_END} AND NEW.ValidTo <> {OPEN_END}
     AND {frozen}) THEN
-  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = '{h} is append-only: only closing the open version is allowed';
+  SIGNAL SQLSTATE '45500' SET MYSQL_ERRNO = 50500, MESSAGE_TEXT = '{h} is append-only: only closing the open version is allowed';
  END IF;
 END$$
 DROP TRIGGER IF EXISTS trg_{s}h_guard_bd$$
-CREATE TRIGGER trg_{s}h_guard_bd BEFORE DELETE ON {h}
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_{s}h_guard_bd BEFORE DELETE ON {h}
 FOR EACH ROW
 BEGIN
- SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = '{h} is append-only: deletions are not permitted';
+ SIGNAL SQLSTATE '45500' SET MYSQL_ERRNO = 50500, MESSAGE_TEXT = '{h} is append-only: deletions are not permitted';
 END$$
 """)
     out.append("DELIMITER ;")

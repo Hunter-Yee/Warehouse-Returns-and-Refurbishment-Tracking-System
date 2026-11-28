@@ -9,14 +9,14 @@ DELIMITER $$
 
 -- AppUser -> AppUserHistory
 DROP TRIGGER IF EXISTS trg_appuser_hist_ai$$
-CREATE TRIGGER trg_appuser_hist_ai AFTER INSERT ON AppUser
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_appuser_hist_ai AFTER INSERT ON AppUser
 FOR EACH ROW
 BEGIN
  INSERT INTO AppUserHistory (UserID, LoginIdentifier, DisplayName, IsActive, ValidFrom, ValidTo, Operation, ChangedByLogin, ChangedByUserID, TransactionID)
  VALUES (NEW.UserID, NEW.LoginIdentifier, NEW.DisplayName, NEW.IsActive, UTC_TIMESTAMP(6), '9999-12-31 23:59:59.999999', 'I', fn_audit_login(), fn_audit_user_id(), fn_audit_transaction_id());
 END$$
 DROP TRIGGER IF EXISTS trg_appuser_hist_au$$
-CREATE TRIGGER trg_appuser_hist_au AFTER UPDATE ON AppUser
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_appuser_hist_au AFTER UPDATE ON AppUser
 FOR EACH ROW
 BEGIN
  DECLARE v_now DATETIME(6) DEFAULT UTC_TIMESTAMP(6);
@@ -31,7 +31,7 @@ BEGIN
  END IF;
 END$$
 DROP TRIGGER IF EXISTS trg_appuser_hist_ad$$
-CREATE TRIGGER trg_appuser_hist_ad AFTER DELETE ON AppUser
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_appuser_hist_ad AFTER DELETE ON AppUser
 FOR EACH ROW
 BEGIN
  DECLARE v_now DATETIME(6) DEFAULT UTC_TIMESTAMP(6);
@@ -42,7 +42,7 @@ BEGIN
 END$$
 
 DROP TRIGGER IF EXISTS trg_appuserh_guard_bu$$
-CREATE TRIGGER trg_appuserh_guard_bu BEFORE UPDATE ON AppUserHistory
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_appuserh_guard_bu BEFORE UPDATE ON AppUserHistory
 FOR EACH ROW
 BEGIN
  IF NOT (OLD.ValidTo = '9999-12-31 23:59:59.999999' AND NEW.ValidTo <> '9999-12-31 23:59:59.999999'
@@ -56,26 +56,26 @@ BEGIN
     AND OLD.ChangedByLogin <=> NEW.ChangedByLogin
     AND OLD.ChangedByUserID <=> NEW.ChangedByUserID
     AND OLD.TransactionID <=> NEW.TransactionID) THEN
-  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'AppUserHistory is append-only: only closing the open version is allowed';
+  SIGNAL SQLSTATE '45500' SET MYSQL_ERRNO = 50500, MESSAGE_TEXT = 'AppUserHistory is append-only: only closing the open version is allowed';
  END IF;
 END$$
 DROP TRIGGER IF EXISTS trg_appuserh_guard_bd$$
-CREATE TRIGGER trg_appuserh_guard_bd BEFORE DELETE ON AppUserHistory
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_appuserh_guard_bd BEFORE DELETE ON AppUserHistory
 FOR EACH ROW
 BEGIN
- SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'AppUserHistory is append-only: deletions are not permitted';
+ SIGNAL SQLSTATE '45500' SET MYSQL_ERRNO = 50500, MESSAGE_TEXT = 'AppUserHistory is append-only: deletions are not permitted';
 END$$
 
 -- Role -> RoleHistory
 DROP TRIGGER IF EXISTS trg_role_hist_ai$$
-CREATE TRIGGER trg_role_hist_ai AFTER INSERT ON Role
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_role_hist_ai AFTER INSERT ON Role
 FOR EACH ROW
 BEGIN
  INSERT INTO RoleHistory (RoleID, RoleCode, Description, IsActive, ValidFrom, ValidTo, Operation, ChangedByLogin, ChangedByUserID, TransactionID)
  VALUES (NEW.RoleID, NEW.RoleCode, NEW.Description, NEW.IsActive, UTC_TIMESTAMP(6), '9999-12-31 23:59:59.999999', 'I', fn_audit_login(), fn_audit_user_id(), fn_audit_transaction_id());
 END$$
 DROP TRIGGER IF EXISTS trg_role_hist_au$$
-CREATE TRIGGER trg_role_hist_au AFTER UPDATE ON Role
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_role_hist_au AFTER UPDATE ON Role
 FOR EACH ROW
 BEGIN
  DECLARE v_now DATETIME(6) DEFAULT UTC_TIMESTAMP(6);
@@ -90,7 +90,7 @@ BEGIN
  END IF;
 END$$
 DROP TRIGGER IF EXISTS trg_role_hist_ad$$
-CREATE TRIGGER trg_role_hist_ad AFTER DELETE ON Role
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_role_hist_ad AFTER DELETE ON Role
 FOR EACH ROW
 BEGIN
  DECLARE v_now DATETIME(6) DEFAULT UTC_TIMESTAMP(6);
@@ -101,7 +101,7 @@ BEGIN
 END$$
 
 DROP TRIGGER IF EXISTS trg_roleh_guard_bu$$
-CREATE TRIGGER trg_roleh_guard_bu BEFORE UPDATE ON RoleHistory
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_roleh_guard_bu BEFORE UPDATE ON RoleHistory
 FOR EACH ROW
 BEGIN
  IF NOT (OLD.ValidTo = '9999-12-31 23:59:59.999999' AND NEW.ValidTo <> '9999-12-31 23:59:59.999999'
@@ -115,26 +115,26 @@ BEGIN
     AND OLD.ChangedByLogin <=> NEW.ChangedByLogin
     AND OLD.ChangedByUserID <=> NEW.ChangedByUserID
     AND OLD.TransactionID <=> NEW.TransactionID) THEN
-  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'RoleHistory is append-only: only closing the open version is allowed';
+  SIGNAL SQLSTATE '45500' SET MYSQL_ERRNO = 50500, MESSAGE_TEXT = 'RoleHistory is append-only: only closing the open version is allowed';
  END IF;
 END$$
 DROP TRIGGER IF EXISTS trg_roleh_guard_bd$$
-CREATE TRIGGER trg_roleh_guard_bd BEFORE DELETE ON RoleHistory
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_roleh_guard_bd BEFORE DELETE ON RoleHistory
 FOR EACH ROW
 BEGIN
- SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'RoleHistory is append-only: deletions are not permitted';
+ SIGNAL SQLSTATE '45500' SET MYSQL_ERRNO = 50500, MESSAGE_TEXT = 'RoleHistory is append-only: deletions are not permitted';
 END$$
 
 -- ReferenceValue -> ReferenceValueHistory
 DROP TRIGGER IF EXISTS trg_referencevalue_hist_ai$$
-CREATE TRIGGER trg_referencevalue_hist_ai AFTER INSERT ON ReferenceValue
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_referencevalue_hist_ai AFTER INSERT ON ReferenceValue
 FOR EACH ROW
 BEGIN
  INSERT INTO ReferenceValueHistory (ReferenceValueID, Domain, Code, Description, IsActive, ValidFrom, ValidTo, Operation, ChangedByLogin, ChangedByUserID, TransactionID)
  VALUES (NEW.ReferenceValueID, NEW.Domain, NEW.Code, NEW.Description, NEW.IsActive, UTC_TIMESTAMP(6), '9999-12-31 23:59:59.999999', 'I', fn_audit_login(), fn_audit_user_id(), fn_audit_transaction_id());
 END$$
 DROP TRIGGER IF EXISTS trg_referencevalue_hist_au$$
-CREATE TRIGGER trg_referencevalue_hist_au AFTER UPDATE ON ReferenceValue
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_referencevalue_hist_au AFTER UPDATE ON ReferenceValue
 FOR EACH ROW
 BEGIN
  DECLARE v_now DATETIME(6) DEFAULT UTC_TIMESTAMP(6);
@@ -150,7 +150,7 @@ BEGIN
  END IF;
 END$$
 DROP TRIGGER IF EXISTS trg_referencevalue_hist_ad$$
-CREATE TRIGGER trg_referencevalue_hist_ad AFTER DELETE ON ReferenceValue
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_referencevalue_hist_ad AFTER DELETE ON ReferenceValue
 FOR EACH ROW
 BEGIN
  DECLARE v_now DATETIME(6) DEFAULT UTC_TIMESTAMP(6);
@@ -161,7 +161,7 @@ BEGIN
 END$$
 
 DROP TRIGGER IF EXISTS trg_referencevalueh_guard_bu$$
-CREATE TRIGGER trg_referencevalueh_guard_bu BEFORE UPDATE ON ReferenceValueHistory
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_referencevalueh_guard_bu BEFORE UPDATE ON ReferenceValueHistory
 FOR EACH ROW
 BEGIN
  IF NOT (OLD.ValidTo = '9999-12-31 23:59:59.999999' AND NEW.ValidTo <> '9999-12-31 23:59:59.999999'
@@ -176,26 +176,26 @@ BEGIN
     AND OLD.ChangedByLogin <=> NEW.ChangedByLogin
     AND OLD.ChangedByUserID <=> NEW.ChangedByUserID
     AND OLD.TransactionID <=> NEW.TransactionID) THEN
-  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'ReferenceValueHistory is append-only: only closing the open version is allowed';
+  SIGNAL SQLSTATE '45500' SET MYSQL_ERRNO = 50500, MESSAGE_TEXT = 'ReferenceValueHistory is append-only: only closing the open version is allowed';
  END IF;
 END$$
 DROP TRIGGER IF EXISTS trg_referencevalueh_guard_bd$$
-CREATE TRIGGER trg_referencevalueh_guard_bd BEFORE DELETE ON ReferenceValueHistory
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_referencevalueh_guard_bd BEFORE DELETE ON ReferenceValueHistory
 FOR EACH ROW
 BEGIN
- SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'ReferenceValueHistory is append-only: deletions are not permitted';
+ SIGNAL SQLSTATE '45500' SET MYSQL_ERRNO = 50500, MESSAGE_TEXT = 'ReferenceValueHistory is append-only: deletions are not permitted';
 END$$
 
 -- Vendor -> VendorHistory
 DROP TRIGGER IF EXISTS trg_vendor_hist_ai$$
-CREATE TRIGGER trg_vendor_hist_ai AFTER INSERT ON Vendor
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_vendor_hist_ai AFTER INSERT ON Vendor
 FOR EACH ROW
 BEGIN
  INSERT INTO VendorHistory (VendorID, VendorName, ContactName, ContactEmail, Phone, IsActive, ValidFrom, ValidTo, Operation, ChangedByLogin, ChangedByUserID, TransactionID)
  VALUES (NEW.VendorID, NEW.VendorName, NEW.ContactName, NEW.ContactEmail, NEW.Phone, NEW.IsActive, UTC_TIMESTAMP(6), '9999-12-31 23:59:59.999999', 'I', fn_audit_login(), fn_audit_user_id(), fn_audit_transaction_id());
 END$$
 DROP TRIGGER IF EXISTS trg_vendor_hist_au$$
-CREATE TRIGGER trg_vendor_hist_au AFTER UPDATE ON Vendor
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_vendor_hist_au AFTER UPDATE ON Vendor
 FOR EACH ROW
 BEGIN
  DECLARE v_now DATETIME(6) DEFAULT UTC_TIMESTAMP(6);
@@ -212,7 +212,7 @@ BEGIN
  END IF;
 END$$
 DROP TRIGGER IF EXISTS trg_vendor_hist_ad$$
-CREATE TRIGGER trg_vendor_hist_ad AFTER DELETE ON Vendor
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_vendor_hist_ad AFTER DELETE ON Vendor
 FOR EACH ROW
 BEGIN
  DECLARE v_now DATETIME(6) DEFAULT UTC_TIMESTAMP(6);
@@ -223,7 +223,7 @@ BEGIN
 END$$
 
 DROP TRIGGER IF EXISTS trg_vendorh_guard_bu$$
-CREATE TRIGGER trg_vendorh_guard_bu BEFORE UPDATE ON VendorHistory
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_vendorh_guard_bu BEFORE UPDATE ON VendorHistory
 FOR EACH ROW
 BEGIN
  IF NOT (OLD.ValidTo = '9999-12-31 23:59:59.999999' AND NEW.ValidTo <> '9999-12-31 23:59:59.999999'
@@ -239,26 +239,26 @@ BEGIN
     AND OLD.ChangedByLogin <=> NEW.ChangedByLogin
     AND OLD.ChangedByUserID <=> NEW.ChangedByUserID
     AND OLD.TransactionID <=> NEW.TransactionID) THEN
-  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'VendorHistory is append-only: only closing the open version is allowed';
+  SIGNAL SQLSTATE '45500' SET MYSQL_ERRNO = 50500, MESSAGE_TEXT = 'VendorHistory is append-only: only closing the open version is allowed';
  END IF;
 END$$
 DROP TRIGGER IF EXISTS trg_vendorh_guard_bd$$
-CREATE TRIGGER trg_vendorh_guard_bd BEFORE DELETE ON VendorHistory
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_vendorh_guard_bd BEFORE DELETE ON VendorHistory
 FOR EACH ROW
 BEGIN
- SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'VendorHistory is append-only: deletions are not permitted';
+ SIGNAL SQLSTATE '45500' SET MYSQL_ERRNO = 50500, MESSAGE_TEXT = 'VendorHistory is append-only: deletions are not permitted';
 END$$
 
 -- Location -> LocationHistory
 DROP TRIGGER IF EXISTS trg_location_hist_ai$$
-CREATE TRIGGER trg_location_hist_ai AFTER INSERT ON Location
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_location_hist_ai AFTER INSERT ON Location
 FOR EACH ROW
 BEGIN
  INSERT INTO LocationHistory (LocationID, LocationCode, LocationName, LocationTypeID, IsActive, ValidFrom, ValidTo, Operation, ChangedByLogin, ChangedByUserID, TransactionID)
  VALUES (NEW.LocationID, NEW.LocationCode, NEW.LocationName, NEW.LocationTypeID, NEW.IsActive, UTC_TIMESTAMP(6), '9999-12-31 23:59:59.999999', 'I', fn_audit_login(), fn_audit_user_id(), fn_audit_transaction_id());
 END$$
 DROP TRIGGER IF EXISTS trg_location_hist_au$$
-CREATE TRIGGER trg_location_hist_au AFTER UPDATE ON Location
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_location_hist_au AFTER UPDATE ON Location
 FOR EACH ROW
 BEGIN
  DECLARE v_now DATETIME(6) DEFAULT UTC_TIMESTAMP(6);
@@ -274,7 +274,7 @@ BEGIN
  END IF;
 END$$
 DROP TRIGGER IF EXISTS trg_location_hist_ad$$
-CREATE TRIGGER trg_location_hist_ad AFTER DELETE ON Location
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_location_hist_ad AFTER DELETE ON Location
 FOR EACH ROW
 BEGIN
  DECLARE v_now DATETIME(6) DEFAULT UTC_TIMESTAMP(6);
@@ -285,7 +285,7 @@ BEGIN
 END$$
 
 DROP TRIGGER IF EXISTS trg_locationh_guard_bu$$
-CREATE TRIGGER trg_locationh_guard_bu BEFORE UPDATE ON LocationHistory
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_locationh_guard_bu BEFORE UPDATE ON LocationHistory
 FOR EACH ROW
 BEGIN
  IF NOT (OLD.ValidTo = '9999-12-31 23:59:59.999999' AND NEW.ValidTo <> '9999-12-31 23:59:59.999999'
@@ -300,26 +300,26 @@ BEGIN
     AND OLD.ChangedByLogin <=> NEW.ChangedByLogin
     AND OLD.ChangedByUserID <=> NEW.ChangedByUserID
     AND OLD.TransactionID <=> NEW.TransactionID) THEN
-  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LocationHistory is append-only: only closing the open version is allowed';
+  SIGNAL SQLSTATE '45500' SET MYSQL_ERRNO = 50500, MESSAGE_TEXT = 'LocationHistory is append-only: only closing the open version is allowed';
  END IF;
 END$$
 DROP TRIGGER IF EXISTS trg_locationh_guard_bd$$
-CREATE TRIGGER trg_locationh_guard_bd BEFORE DELETE ON LocationHistory
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_locationh_guard_bd BEFORE DELETE ON LocationHistory
 FOR EACH ROW
 BEGIN
- SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LocationHistory is append-only: deletions are not permitted';
+ SIGNAL SQLSTATE '45500' SET MYSQL_ERRNO = 50500, MESSAGE_TEXT = 'LocationHistory is append-only: deletions are not permitted';
 END$$
 
 -- Product -> ProductHistory
 DROP TRIGGER IF EXISTS trg_product_hist_ai$$
-CREATE TRIGGER trg_product_hist_ai AFTER INSERT ON Product
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_product_hist_ai AFTER INSERT ON Product
 FOR EACH ROW
 BEGIN
  INSERT INTO ProductHistory (ProductID, SKU, Description, VendorID, SerialRequired, IsActive, ValidFrom, ValidTo, Operation, ChangedByLogin, ChangedByUserID, TransactionID)
  VALUES (NEW.ProductID, NEW.SKU, NEW.Description, NEW.VendorID, NEW.SerialRequired, NEW.IsActive, UTC_TIMESTAMP(6), '9999-12-31 23:59:59.999999', 'I', fn_audit_login(), fn_audit_user_id(), fn_audit_transaction_id());
 END$$
 DROP TRIGGER IF EXISTS trg_product_hist_au$$
-CREATE TRIGGER trg_product_hist_au AFTER UPDATE ON Product
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_product_hist_au AFTER UPDATE ON Product
 FOR EACH ROW
 BEGIN
  DECLARE v_now DATETIME(6) DEFAULT UTC_TIMESTAMP(6);
@@ -336,7 +336,7 @@ BEGIN
  END IF;
 END$$
 DROP TRIGGER IF EXISTS trg_product_hist_ad$$
-CREATE TRIGGER trg_product_hist_ad AFTER DELETE ON Product
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_product_hist_ad AFTER DELETE ON Product
 FOR EACH ROW
 BEGIN
  DECLARE v_now DATETIME(6) DEFAULT UTC_TIMESTAMP(6);
@@ -347,7 +347,7 @@ BEGIN
 END$$
 
 DROP TRIGGER IF EXISTS trg_producth_guard_bu$$
-CREATE TRIGGER trg_producth_guard_bu BEFORE UPDATE ON ProductHistory
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_producth_guard_bu BEFORE UPDATE ON ProductHistory
 FOR EACH ROW
 BEGIN
  IF NOT (OLD.ValidTo = '9999-12-31 23:59:59.999999' AND NEW.ValidTo <> '9999-12-31 23:59:59.999999'
@@ -363,26 +363,26 @@ BEGIN
     AND OLD.ChangedByLogin <=> NEW.ChangedByLogin
     AND OLD.ChangedByUserID <=> NEW.ChangedByUserID
     AND OLD.TransactionID <=> NEW.TransactionID) THEN
-  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'ProductHistory is append-only: only closing the open version is allowed';
+  SIGNAL SQLSTATE '45500' SET MYSQL_ERRNO = 50500, MESSAGE_TEXT = 'ProductHistory is append-only: only closing the open version is allowed';
  END IF;
 END$$
 DROP TRIGGER IF EXISTS trg_producth_guard_bd$$
-CREATE TRIGGER trg_producth_guard_bd BEFORE DELETE ON ProductHistory
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_producth_guard_bd BEFORE DELETE ON ProductHistory
 FOR EACH ROW
 BEGIN
- SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'ProductHistory is append-only: deletions are not permitted';
+ SIGNAL SQLSTATE '45500' SET MYSQL_ERRNO = 50500, MESSAGE_TEXT = 'ProductHistory is append-only: deletions are not permitted';
 END$$
 
 -- ReturnHeader -> ReturnHeaderHistory
 DROP TRIGGER IF EXISTS trg_returnheader_hist_ai$$
-CREATE TRIGGER trg_returnheader_hist_ai AFTER INSERT ON ReturnHeader
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_returnheader_hist_ai AFTER INSERT ON ReturnHeader
 FOR EACH ROW
 BEGIN
  INSERT INTO ReturnHeaderHistory (ReturnID, ExternalReference, ReceivedAt, ReceivingUserID, ValidFrom, ValidTo, Operation, ChangedByLogin, ChangedByUserID, TransactionID)
  VALUES (NEW.ReturnID, NEW.ExternalReference, NEW.ReceivedAt, NEW.ReceivingUserID, UTC_TIMESTAMP(6), '9999-12-31 23:59:59.999999', 'I', fn_audit_login(), fn_audit_user_id(), fn_audit_transaction_id());
 END$$
 DROP TRIGGER IF EXISTS trg_returnheader_hist_au$$
-CREATE TRIGGER trg_returnheader_hist_au AFTER UPDATE ON ReturnHeader
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_returnheader_hist_au AFTER UPDATE ON ReturnHeader
 FOR EACH ROW
 BEGIN
  DECLARE v_now DATETIME(6) DEFAULT UTC_TIMESTAMP(6);
@@ -397,7 +397,7 @@ BEGIN
  END IF;
 END$$
 DROP TRIGGER IF EXISTS trg_returnheader_hist_ad$$
-CREATE TRIGGER trg_returnheader_hist_ad AFTER DELETE ON ReturnHeader
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_returnheader_hist_ad AFTER DELETE ON ReturnHeader
 FOR EACH ROW
 BEGIN
  DECLARE v_now DATETIME(6) DEFAULT UTC_TIMESTAMP(6);
@@ -408,7 +408,7 @@ BEGIN
 END$$
 
 DROP TRIGGER IF EXISTS trg_returnheaderh_guard_bu$$
-CREATE TRIGGER trg_returnheaderh_guard_bu BEFORE UPDATE ON ReturnHeaderHistory
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_returnheaderh_guard_bu BEFORE UPDATE ON ReturnHeaderHistory
 FOR EACH ROW
 BEGIN
  IF NOT (OLD.ValidTo = '9999-12-31 23:59:59.999999' AND NEW.ValidTo <> '9999-12-31 23:59:59.999999'
@@ -422,26 +422,26 @@ BEGIN
     AND OLD.ChangedByLogin <=> NEW.ChangedByLogin
     AND OLD.ChangedByUserID <=> NEW.ChangedByUserID
     AND OLD.TransactionID <=> NEW.TransactionID) THEN
-  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'ReturnHeaderHistory is append-only: only closing the open version is allowed';
+  SIGNAL SQLSTATE '45500' SET MYSQL_ERRNO = 50500, MESSAGE_TEXT = 'ReturnHeaderHistory is append-only: only closing the open version is allowed';
  END IF;
 END$$
 DROP TRIGGER IF EXISTS trg_returnheaderh_guard_bd$$
-CREATE TRIGGER trg_returnheaderh_guard_bd BEFORE DELETE ON ReturnHeaderHistory
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_returnheaderh_guard_bd BEFORE DELETE ON ReturnHeaderHistory
 FOR EACH ROW
 BEGIN
- SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'ReturnHeaderHistory is append-only: deletions are not permitted';
+ SIGNAL SQLSTATE '45500' SET MYSQL_ERRNO = 50500, MESSAGE_TEXT = 'ReturnHeaderHistory is append-only: deletions are not permitted';
 END$$
 
 -- UserRole -> UserRoleHistory
 DROP TRIGGER IF EXISTS trg_userrole_hist_ai$$
-CREATE TRIGGER trg_userrole_hist_ai AFTER INSERT ON UserRole
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_userrole_hist_ai AFTER INSERT ON UserRole
 FOR EACH ROW
 BEGIN
  INSERT INTO UserRoleHistory (UserID, RoleID, ValidFrom, ValidTo, Operation, ChangedByLogin, ChangedByUserID, TransactionID)
  VALUES (NEW.UserID, NEW.RoleID, UTC_TIMESTAMP(6), '9999-12-31 23:59:59.999999', 'I', fn_audit_login(), fn_audit_user_id(), fn_audit_transaction_id());
 END$$
 DROP TRIGGER IF EXISTS trg_userrole_hist_au$$
-CREATE TRIGGER trg_userrole_hist_au AFTER UPDATE ON UserRole
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_userrole_hist_au AFTER UPDATE ON UserRole
 FOR EACH ROW
 BEGIN
  DECLARE v_now DATETIME(6) DEFAULT UTC_TIMESTAMP(6);
@@ -454,7 +454,7 @@ BEGIN
  END IF;
 END$$
 DROP TRIGGER IF EXISTS trg_userrole_hist_ad$$
-CREATE TRIGGER trg_userrole_hist_ad AFTER DELETE ON UserRole
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_userrole_hist_ad AFTER DELETE ON UserRole
 FOR EACH ROW
 BEGIN
  DECLARE v_now DATETIME(6) DEFAULT UTC_TIMESTAMP(6);
@@ -465,7 +465,7 @@ BEGIN
 END$$
 
 DROP TRIGGER IF EXISTS trg_userroleh_guard_bu$$
-CREATE TRIGGER trg_userroleh_guard_bu BEFORE UPDATE ON UserRoleHistory
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_userroleh_guard_bu BEFORE UPDATE ON UserRoleHistory
 FOR EACH ROW
 BEGIN
  IF NOT (OLD.ValidTo = '9999-12-31 23:59:59.999999' AND NEW.ValidTo <> '9999-12-31 23:59:59.999999'
@@ -477,26 +477,26 @@ BEGIN
     AND OLD.ChangedByLogin <=> NEW.ChangedByLogin
     AND OLD.ChangedByUserID <=> NEW.ChangedByUserID
     AND OLD.TransactionID <=> NEW.TransactionID) THEN
-  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'UserRoleHistory is append-only: only closing the open version is allowed';
+  SIGNAL SQLSTATE '45500' SET MYSQL_ERRNO = 50500, MESSAGE_TEXT = 'UserRoleHistory is append-only: only closing the open version is allowed';
  END IF;
 END$$
 DROP TRIGGER IF EXISTS trg_userroleh_guard_bd$$
-CREATE TRIGGER trg_userroleh_guard_bd BEFORE DELETE ON UserRoleHistory
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_userroleh_guard_bd BEFORE DELETE ON UserRoleHistory
 FOR EACH ROW
 BEGIN
- SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'UserRoleHistory is append-only: deletions are not permitted';
+ SIGNAL SQLSTATE '45500' SET MYSQL_ERRNO = 50500, MESSAGE_TEXT = 'UserRoleHistory is append-only: deletions are not permitted';
 END$$
 
 -- ReturnItem -> ReturnItemHistory
 DROP TRIGGER IF EXISTS trg_returnitem_hist_ai$$
-CREATE TRIGGER trg_returnitem_hist_ai AFTER INSERT ON ReturnItem
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_returnitem_hist_ai AFTER INSERT ON ReturnItem
 FOR EACH ROW
 BEGIN
  INSERT INTO ReturnItemHistory (ReturnID, LineNumber, ProductID, SerialNumber, ReturnReasonID, ItemStatusID, CurrentLocationID, ApprovedOutcomeID, ApprovedByUserID, ApprovedAt, CompletionAt, RestockEstimatedValue, LiquidationProceeds, DisposalCost, ValidFrom, ValidTo, Operation, ChangedByLogin, ChangedByUserID, TransactionID)
  VALUES (NEW.ReturnID, NEW.LineNumber, NEW.ProductID, NEW.SerialNumber, NEW.ReturnReasonID, NEW.ItemStatusID, NEW.CurrentLocationID, NEW.ApprovedOutcomeID, NEW.ApprovedByUserID, NEW.ApprovedAt, NEW.CompletionAt, NEW.RestockEstimatedValue, NEW.LiquidationProceeds, NEW.DisposalCost, UTC_TIMESTAMP(6), '9999-12-31 23:59:59.999999', 'I', fn_audit_login(), fn_audit_user_id(), fn_audit_transaction_id());
 END$$
 DROP TRIGGER IF EXISTS trg_returnitem_hist_au$$
-CREATE TRIGGER trg_returnitem_hist_au AFTER UPDATE ON ReturnItem
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_returnitem_hist_au AFTER UPDATE ON ReturnItem
 FOR EACH ROW
 BEGIN
  DECLARE v_now DATETIME(6) DEFAULT UTC_TIMESTAMP(6);
@@ -521,7 +521,7 @@ BEGIN
  END IF;
 END$$
 DROP TRIGGER IF EXISTS trg_returnitem_hist_ad$$
-CREATE TRIGGER trg_returnitem_hist_ad AFTER DELETE ON ReturnItem
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_returnitem_hist_ad AFTER DELETE ON ReturnItem
 FOR EACH ROW
 BEGIN
  DECLARE v_now DATETIME(6) DEFAULT UTC_TIMESTAMP(6);
@@ -532,7 +532,7 @@ BEGIN
 END$$
 
 DROP TRIGGER IF EXISTS trg_returnitemh_guard_bu$$
-CREATE TRIGGER trg_returnitemh_guard_bu BEFORE UPDATE ON ReturnItemHistory
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_returnitemh_guard_bu BEFORE UPDATE ON ReturnItemHistory
 FOR EACH ROW
 BEGIN
  IF NOT (OLD.ValidTo = '9999-12-31 23:59:59.999999' AND NEW.ValidTo <> '9999-12-31 23:59:59.999999'
@@ -556,26 +556,26 @@ BEGIN
     AND OLD.ChangedByLogin <=> NEW.ChangedByLogin
     AND OLD.ChangedByUserID <=> NEW.ChangedByUserID
     AND OLD.TransactionID <=> NEW.TransactionID) THEN
-  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'ReturnItemHistory is append-only: only closing the open version is allowed';
+  SIGNAL SQLSTATE '45500' SET MYSQL_ERRNO = 50500, MESSAGE_TEXT = 'ReturnItemHistory is append-only: only closing the open version is allowed';
  END IF;
 END$$
 DROP TRIGGER IF EXISTS trg_returnitemh_guard_bd$$
-CREATE TRIGGER trg_returnitemh_guard_bd BEFORE DELETE ON ReturnItemHistory
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_returnitemh_guard_bd BEFORE DELETE ON ReturnItemHistory
 FOR EACH ROW
 BEGIN
- SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'ReturnItemHistory is append-only: deletions are not permitted';
+ SIGNAL SQLSTATE '45500' SET MYSQL_ERRNO = 50500, MESSAGE_TEXT = 'ReturnItemHistory is append-only: deletions are not permitted';
 END$$
 
 -- SalesSummary -> SalesSummaryHistory
 DROP TRIGGER IF EXISTS trg_salessummary_hist_ai$$
-CREATE TRIGGER trg_salessummary_hist_ai AFTER INSERT ON SalesSummary
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_salessummary_hist_ai AFTER INSERT ON SalesSummary
 FOR EACH ROW
 BEGIN
  INSERT INTO SalesSummaryHistory (ProductID, CalendarMonth, UnitsSold, SourceReference, EnteredByUserID, UpdatedAt, ValidFrom, ValidTo, Operation, ChangedByLogin, ChangedByUserID, TransactionID)
  VALUES (NEW.ProductID, NEW.CalendarMonth, NEW.UnitsSold, NEW.SourceReference, NEW.EnteredByUserID, NEW.UpdatedAt, UTC_TIMESTAMP(6), '9999-12-31 23:59:59.999999', 'I', fn_audit_login(), fn_audit_user_id(), fn_audit_transaction_id());
 END$$
 DROP TRIGGER IF EXISTS trg_salessummary_hist_au$$
-CREATE TRIGGER trg_salessummary_hist_au AFTER UPDATE ON SalesSummary
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_salessummary_hist_au AFTER UPDATE ON SalesSummary
 FOR EACH ROW
 BEGIN
  DECLARE v_now DATETIME(6) DEFAULT UTC_TIMESTAMP(6);
@@ -592,7 +592,7 @@ BEGIN
  END IF;
 END$$
 DROP TRIGGER IF EXISTS trg_salessummary_hist_ad$$
-CREATE TRIGGER trg_salessummary_hist_ad AFTER DELETE ON SalesSummary
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_salessummary_hist_ad AFTER DELETE ON SalesSummary
 FOR EACH ROW
 BEGIN
  DECLARE v_now DATETIME(6) DEFAULT UTC_TIMESTAMP(6);
@@ -603,7 +603,7 @@ BEGIN
 END$$
 
 DROP TRIGGER IF EXISTS trg_salessummaryh_guard_bu$$
-CREATE TRIGGER trg_salessummaryh_guard_bu BEFORE UPDATE ON SalesSummaryHistory
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_salessummaryh_guard_bu BEFORE UPDATE ON SalesSummaryHistory
 FOR EACH ROW
 BEGIN
  IF NOT (OLD.ValidTo = '9999-12-31 23:59:59.999999' AND NEW.ValidTo <> '9999-12-31 23:59:59.999999'
@@ -619,26 +619,26 @@ BEGIN
     AND OLD.ChangedByLogin <=> NEW.ChangedByLogin
     AND OLD.ChangedByUserID <=> NEW.ChangedByUserID
     AND OLD.TransactionID <=> NEW.TransactionID) THEN
-  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'SalesSummaryHistory is append-only: only closing the open version is allowed';
+  SIGNAL SQLSTATE '45500' SET MYSQL_ERRNO = 50500, MESSAGE_TEXT = 'SalesSummaryHistory is append-only: only closing the open version is allowed';
  END IF;
 END$$
 DROP TRIGGER IF EXISTS trg_salessummaryh_guard_bd$$
-CREATE TRIGGER trg_salessummaryh_guard_bd BEFORE DELETE ON SalesSummaryHistory
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_salessummaryh_guard_bd BEFORE DELETE ON SalesSummaryHistory
 FOR EACH ROW
 BEGIN
- SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'SalesSummaryHistory is append-only: deletions are not permitted';
+ SIGNAL SQLSTATE '45500' SET MYSQL_ERRNO = 50500, MESSAGE_TEXT = 'SalesSummaryHistory is append-only: deletions are not permitted';
 END$$
 
 -- WorkOrder -> WorkOrderHistory
 DROP TRIGGER IF EXISTS trg_workorder_hist_ai$$
-CREATE TRIGGER trg_workorder_hist_ai AFTER INSERT ON WorkOrder
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_workorder_hist_ai AFTER INSERT ON WorkOrder
 FOR EACH ROW
 BEGIN
  INSERT INTO WorkOrderHistory (ReturnID, LineNumber, WorkOrderNumber, AssignedTechnicianUserID, WorkOrderStatusID, CreatedAt, StartedAt, CompletedAt, WorkDetails, TotalLaborCost, TotalPartsCost, ValidFrom, ValidTo, Operation, ChangedByLogin, ChangedByUserID, TransactionID)
  VALUES (NEW.ReturnID, NEW.LineNumber, NEW.WorkOrderNumber, NEW.AssignedTechnicianUserID, NEW.WorkOrderStatusID, NEW.CreatedAt, NEW.StartedAt, NEW.CompletedAt, NEW.WorkDetails, NEW.TotalLaborCost, NEW.TotalPartsCost, UTC_TIMESTAMP(6), '9999-12-31 23:59:59.999999', 'I', fn_audit_login(), fn_audit_user_id(), fn_audit_transaction_id());
 END$$
 DROP TRIGGER IF EXISTS trg_workorder_hist_au$$
-CREATE TRIGGER trg_workorder_hist_au AFTER UPDATE ON WorkOrder
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_workorder_hist_au AFTER UPDATE ON WorkOrder
 FOR EACH ROW
 BEGIN
  DECLARE v_now DATETIME(6) DEFAULT UTC_TIMESTAMP(6);
@@ -660,7 +660,7 @@ BEGIN
  END IF;
 END$$
 DROP TRIGGER IF EXISTS trg_workorder_hist_ad$$
-CREATE TRIGGER trg_workorder_hist_ad AFTER DELETE ON WorkOrder
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_workorder_hist_ad AFTER DELETE ON WorkOrder
 FOR EACH ROW
 BEGIN
  DECLARE v_now DATETIME(6) DEFAULT UTC_TIMESTAMP(6);
@@ -671,7 +671,7 @@ BEGIN
 END$$
 
 DROP TRIGGER IF EXISTS trg_workorderh_guard_bu$$
-CREATE TRIGGER trg_workorderh_guard_bu BEFORE UPDATE ON WorkOrderHistory
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_workorderh_guard_bu BEFORE UPDATE ON WorkOrderHistory
 FOR EACH ROW
 BEGIN
  IF NOT (OLD.ValidTo = '9999-12-31 23:59:59.999999' AND NEW.ValidTo <> '9999-12-31 23:59:59.999999'
@@ -692,26 +692,26 @@ BEGIN
     AND OLD.ChangedByLogin <=> NEW.ChangedByLogin
     AND OLD.ChangedByUserID <=> NEW.ChangedByUserID
     AND OLD.TransactionID <=> NEW.TransactionID) THEN
-  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'WorkOrderHistory is append-only: only closing the open version is allowed';
+  SIGNAL SQLSTATE '45500' SET MYSQL_ERRNO = 50500, MESSAGE_TEXT = 'WorkOrderHistory is append-only: only closing the open version is allowed';
  END IF;
 END$$
 DROP TRIGGER IF EXISTS trg_workorderh_guard_bd$$
-CREATE TRIGGER trg_workorderh_guard_bd BEFORE DELETE ON WorkOrderHistory
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_workorderh_guard_bd BEFORE DELETE ON WorkOrderHistory
 FOR EACH ROW
 BEGIN
- SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'WorkOrderHistory is append-only: deletions are not permitted';
+ SIGNAL SQLSTATE '45500' SET MYSQL_ERRNO = 50500, MESSAGE_TEXT = 'WorkOrderHistory is append-only: deletions are not permitted';
 END$$
 
 -- Inspection -> InspectionHistory
 DROP TRIGGER IF EXISTS trg_inspection_hist_ai$$
-CREATE TRIGGER trg_inspection_hist_ai AFTER INSERT ON Inspection
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_inspection_hist_ai AFTER INSERT ON Inspection
 FOR EACH ROW
 BEGIN
  INSERT INTO InspectionHistory (InspectionID, ReturnID, LineNumber, InspectorUserID, InspectedAt, InspectionTypeID, ConditionGradeID, InspectionResultID, Notes, WorkOrderNumber, ValidFrom, ValidTo, Operation, ChangedByLogin, ChangedByUserID, TransactionID)
  VALUES (NEW.InspectionID, NEW.ReturnID, NEW.LineNumber, NEW.InspectorUserID, NEW.InspectedAt, NEW.InspectionTypeID, NEW.ConditionGradeID, NEW.InspectionResultID, NEW.Notes, NEW.WorkOrderNumber, UTC_TIMESTAMP(6), '9999-12-31 23:59:59.999999', 'I', fn_audit_login(), fn_audit_user_id(), fn_audit_transaction_id());
 END$$
 DROP TRIGGER IF EXISTS trg_inspection_hist_au$$
-CREATE TRIGGER trg_inspection_hist_au AFTER UPDATE ON Inspection
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_inspection_hist_au AFTER UPDATE ON Inspection
 FOR EACH ROW
 BEGIN
  DECLARE v_now DATETIME(6) DEFAULT UTC_TIMESTAMP(6);
@@ -732,7 +732,7 @@ BEGIN
  END IF;
 END$$
 DROP TRIGGER IF EXISTS trg_inspection_hist_ad$$
-CREATE TRIGGER trg_inspection_hist_ad AFTER DELETE ON Inspection
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_inspection_hist_ad AFTER DELETE ON Inspection
 FOR EACH ROW
 BEGIN
  DECLARE v_now DATETIME(6) DEFAULT UTC_TIMESTAMP(6);
@@ -743,7 +743,7 @@ BEGIN
 END$$
 
 DROP TRIGGER IF EXISTS trg_inspectionh_guard_bu$$
-CREATE TRIGGER trg_inspectionh_guard_bu BEFORE UPDATE ON InspectionHistory
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_inspectionh_guard_bu BEFORE UPDATE ON InspectionHistory
 FOR EACH ROW
 BEGIN
  IF NOT (OLD.ValidTo = '9999-12-31 23:59:59.999999' AND NEW.ValidTo <> '9999-12-31 23:59:59.999999'
@@ -763,26 +763,26 @@ BEGIN
     AND OLD.ChangedByLogin <=> NEW.ChangedByLogin
     AND OLD.ChangedByUserID <=> NEW.ChangedByUserID
     AND OLD.TransactionID <=> NEW.TransactionID) THEN
-  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'InspectionHistory is append-only: only closing the open version is allowed';
+  SIGNAL SQLSTATE '45500' SET MYSQL_ERRNO = 50500, MESSAGE_TEXT = 'InspectionHistory is append-only: only closing the open version is allowed';
  END IF;
 END$$
 DROP TRIGGER IF EXISTS trg_inspectionh_guard_bd$$
-CREATE TRIGGER trg_inspectionh_guard_bd BEFORE DELETE ON InspectionHistory
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_inspectionh_guard_bd BEFORE DELETE ON InspectionHistory
 FOR EACH ROW
 BEGIN
- SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'InspectionHistory is append-only: deletions are not permitted';
+ SIGNAL SQLSTATE '45500' SET MYSQL_ERRNO = 50500, MESSAGE_TEXT = 'InspectionHistory is append-only: deletions are not permitted';
 END$$
 
 -- InventoryMovement -> InventoryMovementHistory
 DROP TRIGGER IF EXISTS trg_inventorymovement_hist_ai$$
-CREATE TRIGGER trg_inventorymovement_hist_ai AFTER INSERT ON InventoryMovement
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_inventorymovement_hist_ai AFTER INSERT ON InventoryMovement
 FOR EACH ROW
 BEGIN
  INSERT INTO InventoryMovementHistory (MovementID, ReturnID, LineNumber, SourceLocationID, DestinationLocationID, MovedAt, MovedByUserID, MovementTypeID, Notes, ValidFrom, ValidTo, Operation, ChangedByLogin, ChangedByUserID, TransactionID)
  VALUES (NEW.MovementID, NEW.ReturnID, NEW.LineNumber, NEW.SourceLocationID, NEW.DestinationLocationID, NEW.MovedAt, NEW.MovedByUserID, NEW.MovementTypeID, NEW.Notes, UTC_TIMESTAMP(6), '9999-12-31 23:59:59.999999', 'I', fn_audit_login(), fn_audit_user_id(), fn_audit_transaction_id());
 END$$
 DROP TRIGGER IF EXISTS trg_inventorymovement_hist_au$$
-CREATE TRIGGER trg_inventorymovement_hist_au AFTER UPDATE ON InventoryMovement
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_inventorymovement_hist_au AFTER UPDATE ON InventoryMovement
 FOR EACH ROW
 BEGIN
  DECLARE v_now DATETIME(6) DEFAULT UTC_TIMESTAMP(6);
@@ -802,7 +802,7 @@ BEGIN
  END IF;
 END$$
 DROP TRIGGER IF EXISTS trg_inventorymovement_hist_ad$$
-CREATE TRIGGER trg_inventorymovement_hist_ad AFTER DELETE ON InventoryMovement
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_inventorymovement_hist_ad AFTER DELETE ON InventoryMovement
 FOR EACH ROW
 BEGIN
  DECLARE v_now DATETIME(6) DEFAULT UTC_TIMESTAMP(6);
@@ -813,7 +813,7 @@ BEGIN
 END$$
 
 DROP TRIGGER IF EXISTS trg_inventorymovementh_guard_bu$$
-CREATE TRIGGER trg_inventorymovementh_guard_bu BEFORE UPDATE ON InventoryMovementHistory
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_inventorymovementh_guard_bu BEFORE UPDATE ON InventoryMovementHistory
 FOR EACH ROW
 BEGIN
  IF NOT (OLD.ValidTo = '9999-12-31 23:59:59.999999' AND NEW.ValidTo <> '9999-12-31 23:59:59.999999'
@@ -832,26 +832,26 @@ BEGIN
     AND OLD.ChangedByLogin <=> NEW.ChangedByLogin
     AND OLD.ChangedByUserID <=> NEW.ChangedByUserID
     AND OLD.TransactionID <=> NEW.TransactionID) THEN
-  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'InventoryMovementHistory is append-only: only closing the open version is allowed';
+  SIGNAL SQLSTATE '45500' SET MYSQL_ERRNO = 50500, MESSAGE_TEXT = 'InventoryMovementHistory is append-only: only closing the open version is allowed';
  END IF;
 END$$
 DROP TRIGGER IF EXISTS trg_inventorymovementh_guard_bd$$
-CREATE TRIGGER trg_inventorymovementh_guard_bd BEFORE DELETE ON InventoryMovementHistory
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_inventorymovementh_guard_bd BEFORE DELETE ON InventoryMovementHistory
 FOR EACH ROW
 BEGIN
- SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'InventoryMovementHistory is append-only: deletions are not permitted';
+ SIGNAL SQLSTATE '45500' SET MYSQL_ERRNO = 50500, MESSAGE_TEXT = 'InventoryMovementHistory is append-only: deletions are not permitted';
 END$$
 
 -- VendorClaim -> VendorClaimHistory
 DROP TRIGGER IF EXISTS trg_vendorclaim_hist_ai$$
-CREATE TRIGGER trg_vendorclaim_hist_ai AFTER INSERT ON VendorClaim
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_vendorclaim_hist_ai AFTER INSERT ON VendorClaim
 FOR EACH ROW
 BEGIN
  INSERT INTO VendorClaimHistory (ClaimID, ReturnID, LineNumber, VendorID, RequestedAmount, ClaimStatusID, SubmittedAt, SettlementAmount, SettledAt, RecordedByUserID, ClaimReference, ValidFrom, ValidTo, Operation, ChangedByLogin, ChangedByUserID, TransactionID)
  VALUES (NEW.ClaimID, NEW.ReturnID, NEW.LineNumber, NEW.VendorID, NEW.RequestedAmount, NEW.ClaimStatusID, NEW.SubmittedAt, NEW.SettlementAmount, NEW.SettledAt, NEW.RecordedByUserID, NEW.ClaimReference, UTC_TIMESTAMP(6), '9999-12-31 23:59:59.999999', 'I', fn_audit_login(), fn_audit_user_id(), fn_audit_transaction_id());
 END$$
 DROP TRIGGER IF EXISTS trg_vendorclaim_hist_au$$
-CREATE TRIGGER trg_vendorclaim_hist_au AFTER UPDATE ON VendorClaim
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_vendorclaim_hist_au AFTER UPDATE ON VendorClaim
 FOR EACH ROW
 BEGIN
  DECLARE v_now DATETIME(6) DEFAULT UTC_TIMESTAMP(6);
@@ -873,7 +873,7 @@ BEGIN
  END IF;
 END$$
 DROP TRIGGER IF EXISTS trg_vendorclaim_hist_ad$$
-CREATE TRIGGER trg_vendorclaim_hist_ad AFTER DELETE ON VendorClaim
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_vendorclaim_hist_ad AFTER DELETE ON VendorClaim
 FOR EACH ROW
 BEGIN
  DECLARE v_now DATETIME(6) DEFAULT UTC_TIMESTAMP(6);
@@ -884,7 +884,7 @@ BEGIN
 END$$
 
 DROP TRIGGER IF EXISTS trg_vendorclaimh_guard_bu$$
-CREATE TRIGGER trg_vendorclaimh_guard_bu BEFORE UPDATE ON VendorClaimHistory
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_vendorclaimh_guard_bu BEFORE UPDATE ON VendorClaimHistory
 FOR EACH ROW
 BEGIN
  IF NOT (OLD.ValidTo = '9999-12-31 23:59:59.999999' AND NEW.ValidTo <> '9999-12-31 23:59:59.999999'
@@ -905,14 +905,14 @@ BEGIN
     AND OLD.ChangedByLogin <=> NEW.ChangedByLogin
     AND OLD.ChangedByUserID <=> NEW.ChangedByUserID
     AND OLD.TransactionID <=> NEW.TransactionID) THEN
-  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'VendorClaimHistory is append-only: only closing the open version is allowed';
+  SIGNAL SQLSTATE '45500' SET MYSQL_ERRNO = 50500, MESSAGE_TEXT = 'VendorClaimHistory is append-only: only closing the open version is allowed';
  END IF;
 END$$
 DROP TRIGGER IF EXISTS trg_vendorclaimh_guard_bd$$
-CREATE TRIGGER trg_vendorclaimh_guard_bd BEFORE DELETE ON VendorClaimHistory
+CREATE DEFINER='wr_owner'@'localhost' TRIGGER trg_vendorclaimh_guard_bd BEFORE DELETE ON VendorClaimHistory
 FOR EACH ROW
 BEGIN
- SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'VendorClaimHistory is append-only: deletions are not permitted';
+ SIGNAL SQLSTATE '45500' SET MYSQL_ERRNO = 50500, MESSAGE_TEXT = 'VendorClaimHistory is append-only: deletions are not permitted';
 END$$
 
 DELIMITER ;

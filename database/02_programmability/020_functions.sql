@@ -8,7 +8,7 @@ DELIMITER $$
 -- USER() is the connecting client even inside DEFINER procedures and triggers, which is
 -- what the business procedures already use to resolve the acting staff member.
 DROP FUNCTION IF EXISTS fn_audit_login$$
-CREATE FUNCTION fn_audit_login() RETURNS VARCHAR(100)
+CREATE DEFINER='wr_owner'@'localhost' FUNCTION fn_audit_login() RETURNS VARCHAR(100)
 NOT DETERMINISTIC NO SQL SQL SECURITY INVOKER
 BEGIN
  RETURN SUBSTRING_INDEX(USER(), '@', 1);
@@ -16,7 +16,7 @@ END$$
 
 -- The AppUser behind that login, or NULL for setup/administrative accounts (e.g. root).
 DROP FUNCTION IF EXISTS fn_audit_user_id$$
-CREATE FUNCTION fn_audit_user_id() RETURNS INT UNSIGNED
+CREATE DEFINER='wr_owner'@'localhost' FUNCTION fn_audit_user_id() RETURNS INT UNSIGNED
 NOT DETERMINISTIC READS SQL DATA SQL SECURITY DEFINER
 BEGIN
  RETURN (SELECT UserID FROM AppUser WHERE LoginIdentifier = fn_audit_login() LIMIT 1);
@@ -28,7 +28,7 @@ END$$
 -- for the life of the server process; pair it with the row timestamps across restarts.
 -- Falls back to a per-call UUID if transaction instrumentation is disabled.
 DROP FUNCTION IF EXISTS fn_audit_transaction_id$$
-CREATE FUNCTION fn_audit_transaction_id() RETURNS VARCHAR(64)
+CREATE DEFINER='wr_owner'@'localhost' FUNCTION fn_audit_transaction_id() RETURNS VARCHAR(64)
 NOT DETERMINISTIC READS SQL DATA SQL SECURITY DEFINER
 BEGIN
  DECLARE v_id VARCHAR(64) DEFAULT NULL;

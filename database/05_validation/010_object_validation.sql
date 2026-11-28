@@ -1,13 +1,13 @@
 -- Verify required objects are present. Query results are evidence; inspect expected counts.
--- 1. Base tables verification (expected: 15 core tables + 14 history tables)
+-- 1. Base tables verification (expected: 15 core tables + 14 history tables + 2 SchemaBuild tables)
 SELECT COUNT(*) AS BaseTableCount FROM information_schema.TABLES
- WHERE TABLE_SCHEMA=DATABASE() AND TABLE_TYPE='BASE TABLE' AND TABLE_NAME NOT LIKE '%History';
+ WHERE TABLE_SCHEMA=DATABASE() AND TABLE_TYPE='BASE TABLE' AND TABLE_NAME NOT LIKE '%History' AND TABLE_NAME NOT LIKE 'SchemaBuild%';
 SELECT COUNT(*) AS HistoryTableCount FROM information_schema.TABLES
  WHERE TABLE_SCHEMA=DATABASE() AND TABLE_TYPE='BASE TABLE' AND TABLE_NAME LIKE '%History';
 SELECT TABLE_NAME FROM information_schema.TABLES
  WHERE TABLE_SCHEMA=DATABASE() AND TABLE_TYPE='BASE TABLE' ORDER BY TABLE_NAME;
 
--- 2. Views verification (expected: 4 views: 2 reporting + 2 audit trail)
+-- 2. Views verification (expected: 6 views: 4 reporting + 2 audit trail)
 SELECT COUNT(*) AS ViewCount FROM information_schema.VIEWS
  WHERE TABLE_SCHEMA=DATABASE();
 SELECT TABLE_NAME AS ViewName FROM information_schema.VIEWS
@@ -29,6 +29,19 @@ SELECT ROUTINE_NAME,ROUTINE_TYPE FROM information_schema.ROUTINES
 SELECT ROUTINE_NAME,ROUTINE_TYPE FROM information_schema.ROUTINES
  WHERE ROUTINE_SCHEMA=DATABASE() AND ROUTINE_NAME IN
  ('sp_register_return','sp_register_single_return','sp_record_initial_inspection','sp_approve_disposition') ORDER BY ROUTINE_NAME;
+
+-- Midterm-feedback procedures (FRD 5.2 exits) and audit trail
+SELECT ROUTINE_NAME, ROUTINE_TYPE FROM information_schema.ROUTINES
+ WHERE ROUTINE_SCHEMA=DATABASE() AND ROUTINE_NAME IN
+ ('sp_withdraw_approval','sp_cancel_work_order','sp_deny_claim','sp_cancel_claim','sp_get_item_audit_trail') ORDER BY ROUTINE_NAME;
+
+-- Every routine, trigger and view must be owned by the locked wr_owner account (expected: 0 rows)
+SELECT 'ROUTINE' AS ObjectType, ROUTINE_NAME AS ObjectName, DEFINER FROM information_schema.ROUTINES
+ WHERE ROUTINE_SCHEMA=DATABASE() AND DEFINER <> 'wr_owner@localhost'
+UNION ALL SELECT 'TRIGGER', TRIGGER_NAME, DEFINER FROM information_schema.TRIGGERS
+ WHERE TRIGGER_SCHEMA=DATABASE() AND DEFINER <> 'wr_owner@localhost'
+UNION ALL SELECT 'VIEW', TABLE_NAME, DEFINER FROM information_schema.VIEWS
+ WHERE TABLE_SCHEMA=DATABASE() AND DEFINER <> 'wr_owner@localhost';
 
 -- Phase 4 Procedures
 SELECT ROUTINE_NAME, ROUTINE_TYPE FROM information_schema.ROUTINES
