@@ -1,0 +1,124 @@
+# Warehouse Returns scaled benchmark
+# database=wr_base returns=50000 commit=3b615a9
+
+## 010_load_scale_data.sql
+RequestedReturns	LoaderAction
+50000	Already loaded: no rows will be inserted
+Note (Code 1051): Unknown table 'wr_base.tmp_perf_seq'
+Note (Code 1051): Unknown table 'wr_base.tmp_perf_product'
+Note (Code 1051): Unknown table 'wr_base.tmp_perf_reason'
+Note (Code 1051): Unknown table 'wr_base.tmp_perf_state'
+Warning (Code 1681): Integer display width is deprecated and will be removed in a future release.
+Table	Op	Msg_type	Msg_text
+wr_base.returnheader	analyze	status	OK
+wr_base.returnitem	analyze	status	OK
+wr_base.auditlog	analyze	status	OK
+table_name	row_count
+ReturnHeader	50005
+ReturnItem	100006
+ReturnItem (open)	70009
+AuditLog	451654
+AuditLog (ReturnItem entity)	301655
+
+## 020_benchmark.sql (warm-up run, discarded)
+(done)
+
+## 020_benchmark.sql (measured run)
+mysql_version	schema_name	run_at_utc
+8.4.11	wr_base	2026-11-27 17:57:26
+ix_audit_entity_record_columns
+4
+table_name	row_count
+ReturnHeader	50005
+ReturnItem	100006
+AuditLog	451654
+AuditLog (ReturnItem entity)	301655
+BenchReturnID	BenchLineNumber
+25006	1
+EXPLAIN
+-> Filter: ((json_unquote(json_extract(a.RecordKey,'$.ReturnID')) = <cache>(cast((@report_return_id) as char charset utf8mb4))) and (json_unquote(json_extract(a.RecordKey,'$.LineNumber')) = <cache>(cast((@report_line_no) as char charset utf8mb4))))  (cost=26375 rows=227462) (actual time=91.6..181 rows=5 loops=1)
+    -> Index lookup on a using ix_audit_entity_time (EntityName='ReturnItem')  (cost=26375 rows=227462) (actual time=0.00554..162 rows=301655 loops=1)
+
+EXPLAIN
+-> Index lookup on a using ix_audit_entity_record (EntityName='ReturnItem', AuditReturnID=(@report_return_id), AuditLineNumber=(@report_line_no))  (cost=1.75 rows=5) (actual time=0.00783..0.0143 rows=5 loops=1)
+
+EXPLAIN
+-> Filter: ((a.AuditLineNumber = <cache>((@report_line_no))) and (a.AuditReturnID = <cache>((@report_return_id))))  (cost=3857 rows=2275) (actual time=104..205 rows=5 loops=1)
+    -> Index lookup on a using ix_audit_entity_time (EntityName='ReturnItem')  (cost=3857 rows=227462) (actual time=0.00425..198 rows=301655 loops=1)
+
+BeforeRows	AfterRows	MismatchedGeneratedKeys
+5	5	0
+EXPLAIN
+-> Sort: x.EventTime, x.TieBreak, x.EventID  (cost=14..14 rows=8) (actual time=0.0323..0.0325 rows=5 loops=1)
+    -> Table scan on x  (cost=8.48..10.8 rows=8) (actual time=0.0274..0.0278 rows=5 loops=1)
+        -> Union all materialize  (cost=8.15..8.15 rows=8) (actual time=0.027..0.027 rows=5 loops=1)
+            -> Nested loop inner join  (cost=1.75 rows=1) (actual time=0.00333..0.00333 rows=0 loops=1)
+                -> Nested loop inner join  (cost=1.4 rows=1) (actual time=0.00329..0.00329 rows=0 loops=1)
+                    -> Nested loop inner join  (cost=1.05 rows=1) (actual time=0.00329..0.00329 rows=0 loops=1)
+                        -> Nested loop inner join  (cost=0.7 rows=1) (actual time=0.00317..0.00317 rows=0 loops=1)
+                            -> Index lookup on i using ix_inspection_item_time (ReturnID=(@report_return_id), LineNumber=(@report_line_no))  (cost=0.35 rows=1) (actual time=0.00296..0.00296 rows=0 loops=1)
+                            -> Single-row index lookup on u using PRIMARY (UserID=i.InspectorUserID)  (cost=0.35 rows=1) (never executed)
+                        -> Single-row index lookup on t using PRIMARY (ReferenceValueID=i.InspectionTypeID)  (cost=0.35 rows=1) (never executed)
+                    -> Single-row index lookup on result using PRIMARY (ReferenceValueID=i.InspectionResultID)  (cost=0.35 rows=1) (never executed)
+                -> Single-row index lookup on grade using PRIMARY (ReferenceValueID=i.ConditionGradeID)  (cost=0.35 rows=1) (never executed)
+            -> Nested loop inner join  (cost=0.7 rows=1) (actual time=834e-6..834e-6 rows=0 loops=1)
+                -> Index lookup on w using PRIMARY (ReturnID=(@report_return_id), LineNumber=(@report_line_no))  (cost=0.35 rows=1) (actual time=834e-6..834e-6 rows=0 loops=1)
+                -> Single-row index lookup on u using PRIMARY (UserID=w.AssignedTechnicianUserID)  (cost=0.35 rows=1) (never executed)
+            -> Nested loop inner join  (cost=1.4 rows=1) (actual time=792e-6..792e-6 rows=0 loops=1)
+                -> Nested loop inner join  (cost=1.05 rows=1) (actual time=751e-6..751e-6 rows=0 loops=1)
+                    -> Nested loop inner join  (cost=0.7 rows=1) (actual time=667e-6..667e-6 rows=0 loops=1)
+                        -> Index lookup on m using ix_movement_item_time (ReturnID=(@report_return_id), LineNumber=(@report_line_no))  (cost=0.35 rows=1) (actual time=625e-6..625e-6 rows=0 loops=1)
+                        -> Single-row index lookup on u using PRIMARY (UserID=m.MovedByUserID)  (cost=0.35 rows=1) (never executed)
+                    -> Single-row index lookup on src using PRIMARY (LocationID=m.SourceLocationID)  (cost=0.35 rows=1) (never executed)
+                -> Single-row index lookup on dst using PRIMARY (LocationID=m.DestinationLocationID)  (cost=0.35 rows=1) (never executed)
+            -> Nested loop inner join  (cost=3.5 rows=5) (actual time=0.00737..0.0145 rows=5 loops=1)
+                -> Index lookup on a using ix_audit_entity_record (EntityName='ReturnItem', AuditReturnID=(@report_return_id), AuditLineNumber=(@report_line_no))  (cost=1.75 rows=5) (actual time=0.00554..0.0115 rows=5 loops=1)
+                -> Single-row index lookup on u using PRIMARY (UserID=a.UserID)  (cost=0.27 rows=1) (actual time=500e-6..508e-6 rows=1 loops=5)
+
+EXPLAIN
+-> Sort: vw_open_items.ReceivedAt, vw_open_items.ReturnID, vw_open_items.LineNumber  (actual time=156..161 rows=70009 loops=1)
+    -> Stream results  (cost=62479 rows=13349) (actual time=0.131..137 rows=70009 loops=1)
+        -> Nested loop inner join  (cost=62479 rows=13349) (actual time=0.129..115 rows=70009 loops=1)
+            -> Nested loop inner join  (cost=57807 rows=13349) (actual time=0.127..83.8 rows=70009 loops=1)
+                -> Nested loop inner join  (cost=36570 rows=60676) (actual time=0.126..68.1 rows=70009 loops=1)
+                    -> Nested loop inner join  (cost=15333 rows=60676) (actual time=0.12..46.5 rows=70009 loops=1)
+                        -> Table scan on loc  (cost=0.95 rows=7) (actual time=0.00275..0.00513 rows=7 loops=1)
+                        -> Filter: (ri.CompletionAt is null)  (cost=581 rows=8668) (actual time=1.93..6.38 rows=10001 loops=7)
+                            -> Index lookup on ri using fk_item_location (CurrentLocationID=loc.LocationID)  (cost=581 rows=17336) (actual time=0.115..6.05 rows=14287 loops=7)
+                    -> Single-row index lookup on p using PRIMARY (ProductID=ri.ProductID)  (cost=0.25 rows=1) (actual time=228e-6..242e-6 rows=1 loops=70009)
+                -> Filter: (st.Domain = 'ItemStatus')  (cost=0.25 rows=0.22) (actual time=116e-6..156e-6 rows=1 loops=70009)
+                    -> Single-row index lookup on st using PRIMARY (ReferenceValueID=ri.ItemStatusID)  (cost=0.25 rows=1) (actual time=33.7e-6..47.6e-6 rows=1 loops=70009)
+            -> Single-row index lookup on rh using PRIMARY (ReturnID=ri.ReturnID)  (cost=0.25 rows=1) (actual time=359e-6..373e-6 rows=1 loops=70009)
+
+EXPLAIN
+-> Table scan on <temporary>  (actual time=5.37..5.37 rows=3 loops=1)
+    -> Aggregate using temporary table  (actual time=5.37..5.37 rows=3 loops=1)
+        -> Left hash join (wo.LineNumber = ri.LineNumber), (wo.ReturnID = ri.ReturnID)  (cost=271 rows=2510) (actual time=0.197..4.69 rows=2510 loops=1)
+            -> Nested loop left join  (cost=503 rows=2510) (actual time=0.191..4.6 rows=2510 loops=1)
+                -> Left hash join (vc.LineNumber = ri.LineNumber), (vc.ReturnID = ri.ReturnID)  (cost=252 rows=2510) (actual time=0.19..4.25 rows=2510 loops=1)
+                    -> Nested loop inner join  (cost=3765 rows=2510) (actual time=0.186..4.15 rows=2510 loops=1)
+                        -> Nested loop inner join  (cost=2887 rows=2510) (actual time=0.185..2.91 rows=2510 loops=1)
+                            -> Nested loop left join  (cost=2008 rows=2510) (actual time=0.184..2.42 rows=2510 loops=1)
+                                -> Index range scan on ri using ix_item_completion over ('2026-10-01 00:00:00.000000' <= CompletionAt < '2026-11-01 00:00:00.000000'), with index condition: ((ri.CompletionAt >= <cache>((@period_start))) and (ri.CompletionAt < <cache>((@period_end))))  (cost=1130 rows=2510) (actual time=0.181..1.57 rows=2510 loops=1)
+                                -> Filter: (disp.Domain = 'Disposition')  (cost=0.25 rows=1) (actual time=232e-6..271e-6 rows=1 loops=2510)
+                                    -> Single-row index lookup on disp using PRIMARY (ReferenceValueID=ri.ApprovedOutcomeID)  (cost=0.25 rows=1) (actual time=139e-6..153e-6 rows=1 loops=2510)
+                            -> Single-row covering index lookup on p using PRIMARY (ProductID=ri.ProductID)  (cost=0.25 rows=1) (actual time=118e-6..132e-6 rows=1 loops=2510)
+                        -> Single-row covering index lookup on rh using PRIMARY (ReturnID=ri.ReturnID)  (cost=0.25 rows=1) (actual time=412e-6..425e-6 rows=1 loops=2510)
+                    -> Hash
+                        -> Table scan on vc  (cost=437e-6 rows=1) (actual time=0.00213..0.00213 rows=0 loops=1)
+                -> Filter: (cs.Domain = 'ClaimStatus')  (cost=139e-6 rows=1) (actual time=83.5e-6..83.5e-6 rows=0 loops=2510)
+                    -> Single-row index lookup on cs using PRIMARY (ReferenceValueID=vc.ClaimStatusID)  (cost=139e-6 rows=1) (actual time=30.1e-6..30.1e-6 rows=0 loops=2510)
+            -> Hash
+                -> Table scan on wo  (cost=3.06..3.06 rows=1) (actual time=0.00475..0.00475 rows=0 loops=1)
+                    -> Materialize  (cost=0.55..0.55 rows=1) (actual time=0.00458..0.00458 rows=0 loops=1)
+                        -> Group aggregate: sum(workorder.TotalLaborCost), sum(workorder.TotalPartsCost)  (cost=0.45 rows=1) (actual time=0.00146..0.00146 rows=0 loops=1)
+                            -> Index scan on workorder using PRIMARY  (cost=0.35 rows=1) (actual time=0.00108..0.00108 rows=0 loops=1)
+
+RowsInserted	InsertMs
+10000	63.7430
+index_name	size_mb
+PRIMARY	75.61
+fk_audit_user	9.50
+ix_audit_entity_record	29.48
+ix_audit_entity_time	26.52
+ix_audit_transaction	22.61
