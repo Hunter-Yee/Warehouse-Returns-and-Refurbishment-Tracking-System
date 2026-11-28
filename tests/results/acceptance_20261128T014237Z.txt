@@ -1,0 +1,158 @@
+# Acceptance tests (FRD 2.1 AC-01..AC-11)  database=wr_fb  commit=9feb1f7
+# MySQL 8.4.11  run at 2026-11-28 01:42:37 UTC
+
+## AC-08  FR-10 RQ-03/RQ-05: return rate, N/A, turnaround, delayed items
+PASS  Manager adds products AC08-TOA and AC08-NOS (product maintenance is Manager-only)
+PASS  Manager enters 200 units sold for 2026-11-01
+PASS  Receiving registers 10 returned units of AC08-TOA in one return
+PASS  10 returned / 200 sold = 5.00%
+PASS  Returns with missing sales show N/A (NULL), not 0%
+PASS  Manager records zero sales for AC08-NOS
+PASS  Zero sales also show N/A
+      FIXTURE: AC08-T2 receipt time set to 2 days before its completion
+      FIXTURE: AC08-T4 receipt time set to 4 days before its completion
+      FIXTURE: AC08-OPEN received 8 days ago, still open
+PASS  Completed in 2 and 4 days averages 3.00 days
+PASS  The 8-day open item is listed as delayed (> 7 days)
+PASS  ...and is excluded from the completed average
+
+## AC-01  FR-01/02: intake, duplicate and serial rules
+PASS  Three units of one SKU are recorded as three lines
+PASS  Lines 1, 2, 3 exist, each its own unit awaiting inspection at INT-01
+PASS  Duplicate return reference is rejected  -> ERROR 50009 (45009): Duplicate external reference
+PASS  Same reference with surrounding spaces is also a duplicate  -> ERROR 50009 (45009): Duplicate external reference
+PASS  Unknown product is rejected  -> ERROR 50001 (45001): Invalid or inactive product SKU
+PASS  Missing required serial is rejected  -> ERROR 50001 (45001): Serial number required for this product
+PASS  A second open unit with the same product/serial is rejected  -> ERROR 50009 (45009): Product and serial number already has an open return item
+PASS  Rejected intakes left no header behind
+      concurrency: two sessions register the same new serial at the same moment
+PASS  Exactly one of the two concurrent intakes succeeded (Product row lock serializes them)
+      loser: ERROR 1213 (40001) at line 1: Deadlock found when trying to get lock; try restarting transaction
+PASS  Receiving cannot bypass the procedure with a direct INSERT (midterm finding)  -> ERROR 1142 (42000): INSERT command denied to user 'wr_receiving01'@'localhost' for table 'returnheader'
+
+## AC-02 / AC-03 / AC-04  FR-03..06, FR-13/14: inspections, repairs, restock eligibility
+PASS  Initial inspection (no order): Fail, grade C
+PASS  Initial inspection has no work order link
+PASS  Receiving staff cannot approve a disposition  -> ERROR 1370 (42000): execute command denied to user 'wr_receiving01'@'localhost' for routine 'wr_fb.sp_approve_
+PASS  AC-03: an order cannot be assigned without Repair approval  -> ERROR 1370 (42000): execute command denied to user 'wr_technician01'@'localhost' for routine 'wr_fb.sp_assign_
+PASS  AC-03: Manager cannot assign before Repair approval  -> ERROR 50009 (45009): Item must be approved for repair
+PASS  Manager approves Repair with no amount
+PASS  Manager assigns order 1 to Taylor Reed
+PASS  AC-03: a second active order is rejected  -> ERROR 50009 (45009): An active work order already exists
+PASS  AC-03: another Technician cannot start it  -> ERROR 50009 (45009): Order not open, assigned to actor, or item not repair-approved
+PASS  Assigned Technician starts the repair
+PASS  AC-04: a check before completion is rejected  -> ERROR 50009 (45009): Item not awaiting repair inspection
+PASS  AC-03: negative cost is rejected  -> ERROR 50001 (45001): Costs must be nonnegative
+PASS  AC-03: another Technician cannot complete it  -> ERROR 50009 (45009): Only assigned technician can complete an in-progress order
+PASS  AC-03: assigned work completed with $10 labor and $5 parts
+PASS  AC-02: a check linked to the wrong order is rejected  -> ERROR 50009 (45009): Inspection must reference latest completed order
+PASS  PostRepair Pass (grade A) linked to the latest order
+PASS  PostRepair is linked to order 1 of the same item
+PASS  AC-04: restock allowed after PostRepair Pass for the latest order
+PASS  AC-04: a check of an older order is rejected  -> ERROR 50009 (45009): Inspection must reference latest completed order
+PASS  Unit B went through two repair orders and three inspections
+PASS  AC-04: a later Fail blocks restock  -> ERROR 50009 (45009): Restock requires latest Pass and grade A/B
+PASS  Manager approves liquidation at $30 instead
+PASS  Initial Pass, grade A
+PASS  AC-04: direct restock allowed after Initial Pass A/B
+PASS  FRD 5.2: Manager withdraws the unstarted restock approval
+PASS  Withdrawal returns the item to AwaitingDecision and clears outcome/approver/time/value
+PASS  AC-02: Final inspection in AwaitingDecision (no repair, so no order link): Fail
+PASS  Final inspection recorded with no order and the state unchanged
+PASS  AC-04: the later Final Fail blocks restock  -> ERROR 50009 (45009): Restock requires latest Pass and grade A/B
+PASS  Final inspection Pass, grade B
+PASS  AC-04: restock allowed again after Final Pass
+PASS  Inconclusive Initial result succeeds with a warning  -> warning: Inconclusive result
+PASS  AC-02: approval after an Inconclusive result is rejected  -> ERROR 50009 (45009): Item must await manager decision
+PASS  FRD 5.2: Manager cancels the unstarted (Open) work order
+PASS  Order is Cancelled and the item is back in AwaitingDecision with no outcome
+PASS  A cancelled order can no longer be started  -> ERROR 50009 (45009): Order not open, assigned to actor, or item not repair-approved
+PASS  Withdrawing again is rejected (nothing to withdraw)  -> ERROR 50009 (45009): Only an unstarted approval can be withdrawn
+PASS  A withdrawal reason is required  -> ERROR 50001 (45001): A reason is required
+
+## AC-05  FR-07/11: movements, rollback, killed transaction
+PASS  Routine relocation INT-01 -> INSP-01
+PASS  Relocation moved the item and preserved its status (trigger updated the location)
+PASS  A stale source location is rejected  -> ERROR 50009 (45009): Invalid item/source/destination
+PASS  Administrator adds location AC05-OLD and deactivates it (it holds no items)
+PASS  An inactive destination is rejected  -> ERROR 50001 (45001): Inactive/incorrect movement type or destination
+PASS  Forced error: Restock move of an unapproved item fails inside the trigger  -> ERROR 50009 (45009): Movement type, approved status, and destination mismatch
+PASS  Forced error rolled back movement, audit, history and location (3/75/60/2 = 3/75/60/2)
+      killed transaction: session 1 runs sp_move_item; session 2 holds a lock that pauses it
+      after the movement, item update and history are written but before the audit row and COMMIT
+      session 1 (connection 1369) is waiting with 4 uncommitted row changes
+PASS  Session 1 had written uncommitted changes before the kill (4 rows)
+      before: 1 moves / 1 audit / 3 history / location 2
+      after:  1 moves / 1 audit / 3 history / location 2
+PASS  KILL rolled back movement, location, history and audit together
+
+## AC-06  FR-08: vendor claims
+PASS  Manager submits an $8 claim for unit A
+PASS  A second lifetime claim on the same unit is rejected  -> ERROR 50009 (45009): Item already has a vendor claim (one per item lifetime)
+PASS  Manager approves the claim
+PASS  Unit A is now Restocked (closed)
+PASS  A new claim on a closed unit is rejected  -> ERROR 50009 (45009): Cannot claim missing or closed item
+PASS  Settling $5 of $8 after completion succeeds with a partial-recovery warning  -> warning: partial recovery
+PASS  Settlement did not change item status, location or completion
+PASS  A settled claim is terminal (cannot be cancelled)  -> ERROR 50009 (45009): Only submitted or approved claims can be cancelled
+PASS  Claim exit: Submitted -> Cancelled
+PASS  Manager submits a $10 claim for unit B
+PASS  Claim exit: Submitted -> Denied
+PASS  A denied claim cannot be approved  -> ERROR 50009 (45009): Only submitted claims can be approved
+
+## AC-09  FR-10/12 RQ-04: recovery value
+PASS  $60 restock estimate + $5 settlement - $15 repair = $50 net (unit A)
+PASS  $30 liquidation - $8 repair over two orders = $22 net (unit B; denied claim adds nothing)
+PASS  $4 disposal + $6 repair = -$10 net (unit C)
+PASS  Multiple orders, inspections and movements do not multiply rows (one row per unit)
+
+## AC-07  FR-09/10 RQ-01/RQ-02: search, history, money restricted to Managers
+PASS  Open items can be searched by serial, SKU, status and location
+PASS  RQ-01 lists the oldest open item first
+PASS  Inspector can read non-financial item columns
+PASS  Inspector cannot read money columns on ReturnItem  -> ERROR 1143 (42000): SELECT command denied to user 'wr_inspector01'@'localhost' for column 'RestockEstimatedVal
+PASS  Receiving cannot read the recovery report  -> ERROR 1142 (42000): SELECT command denied to user 'wr_receiving01'@'localhost' for table 'vw_item_recovery'
+PASS  Technician cannot read vendor claims  -> ERROR 1142 (42000): SELECT command denied to user 'wr_technician01'@'localhost' for table 'vendorclaim'
+PASS  Manager reads RQ-04 recovery
+PASS  RQ-02 item history via the audit trail procedure
+PASS  Unit A's history shows every step from intake to Restocked
+
+## AC-10  FR-11/15: administration, audit writes, terminal items
+PASS  Administrator adds staff account wr_inspector02 and grants the Inspector role
+PASS  Administrator renames a location label
+PASS  Administrator deactivates the new account (no active work)
+PASS  A technician with an Open work order cannot be deactivated  -> ERROR 50009 (45009): User has active work orders and cannot be deactivated
+PASS  Account, role and location changes are recorded with old/new values and the administrator
+PASS  Direct audit write is rejected (Manager)  -> ERROR 1142 (42000): INSERT command denied to user 'wr_manager01'@'localhost' for table 'auditlog'
+PASS  Direct audit read/write is rejected (Administrator: redacted views only)  -> ERROR 1142 (42000): SELECT command denied to user 'wr_admin01'@'localhost' for table 'auditlog'
+PASS  Even the setup account cannot edit AuditLog  -> ERROR 50500 (45500): AuditLog is append-only: updates are not permitted
+PASS  Terminal item cannot be re-approved (reopened)  -> ERROR 50009 (45009): Item must await manager decision
+PASS  Terminal item cannot be moved  -> ERROR 50009 (45009): Closed item, missing item, or stale source location
+PASS  No role can update protected tables directly  -> ERROR 1142 (42000): UPDATE command denied to user 'wr_manager01'@'localhost' for table 'returnitem'
+PASS  Monthly sales go through the procedure only  -> ERROR 1142 (42000): UPDATE command denied to user 'wr_manager01'@'localhost' for table 'salessummary'
+
+## AC-11  FR-11/15: reference value administration
+PASS  Administrator adds return reason 'Recall'
+PASS  Administrator edits a grade label (behavior unchanged)
+PASS  A reason used by an open item cannot be deactivated  -> ERROR 50009 (45009): Return reason is used by open items and cannot be deactivated
+PASS  Reason used only by completed items can be deactivated
+PASS  History still resolves the inactive reason
+PASS  New use of the inactive reason fails  -> ERROR 50001 (45001): Invalid or inactive return reason
+PASS  A value from the wrong domain is rejected (grade code as a reason)  -> ERROR 50001 (45001): Invalid or inactive return reason
+PASS  Recoding a referenced value is rejected  -> ERROR 50009 (45009): Referenced or workflow reference values cannot be recoded or moved to another domain
+PASS  Moving a value to another domain is rejected  -> ERROR 50009 (45009): Referenced or workflow reference values cannot be recoded or moved to another domain
+PASS  Deactivating a workflow value needed by open work is rejected  -> ERROR 50009 (45009): Workflow reference values are needed by enabled transitions and cannot be deactivated
+PASS  Deleting reference values is not permitted  -> ERROR 1142 (42000): DELETE command denied to user 'wr_admin01'@'localhost' for table 'referencevalue'
+PASS  Even the setup account cannot delete a referenced value (FK RESTRICT)  -> ERROR 1451 (23000): Cannot delete or update a parent row: a foreign key constraint fails (`wr_fb`.`returnitem`
+PASS  Reference edits are audited (label edit with old and new value)
+
+## Midterm feedback: accounts, owner, error classes, version stamp
+PASS  Routine owner wr_owner cannot log in  -> ERROR 1045
+PASS  All views, routines and triggers are owned by wr_owner (none by root)
+PASS  Role logins have no direct write access to any protected table
+PASS  A MySQL grant alone is not enough: with the app role removed, the procedure refuses (class 45003)  -> ERROR 50003 (45003): Technician login required
+PASS  Not-found errors use class 45004  -> ERROR 50004 (45004): Return reference not found
+SKIP  In-database version stamp (schema was not built by build/build_database.sh)
+
+## Summary: 122 passed, 0 failed, 1 skipped
+Saved: /Users/rajdeepvilluri/Warehouse-Returns-and-Refurbishment-Tracking-System/tests/results/acceptance_20261128T014237Z.txt
