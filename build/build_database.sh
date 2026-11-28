@@ -139,7 +139,7 @@ SHARED=$(mysql_admin --skip-column-names --execute="
 SELECT GROUP_CONCAT(DISTINCT p.Db ORDER BY p.Db SEPARATOR ', ') FROM (
   SELECT Db, User FROM mysql.db UNION ALL SELECT Db, User FROM mysql.tables_priv UNION ALL SELECT Db, User FROM mysql.procs_priv
 ) p JOIN information_schema.SCHEMATA s ON s.SCHEMA_NAME = p.Db
-WHERE (p.User LIKE 'wr\\_role\\_%' OR p.User = 'wr_owner') AND p.Db <> '${TARGET_DB}';" 2>>"$ERROR_LOG") || fail 'Shared account check failed'
+WHERE (p.User LIKE 'wr\\_role\\_%' OR p.User = 'wr_owner') AND p.Db <> '${TARGET_DB}' AND p.Db NOT IN ('performance_schema', 'mysql', 'sys');" 2>>"$ERROR_LOG") || fail 'Shared account check failed'
 if [ -n "$SHARED" ] && [ "$SHARED" != 'NULL' ]; then
   if [ "$ALLOW_SHARED_ACCOUNTS" = '1' ]; then
     log "WARNING: wr_* roles/logins are shared with existing schema(s): $SHARED (ALLOW_SHARED_ACCOUNTS=1)"
