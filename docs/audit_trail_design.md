@@ -13,7 +13,7 @@ This implements the final-project audit requirement: for the core business entit
 | `vw_master_data_change_history` | same | The same grid for users, roles, role assignments, reference values, locations, products, vendors and monthly sales. |
 | `sp_get_item_audit_trail` | same | Paged search used by the audit screen. |
 | Generator | `tools/generate_history_sql.py` | Produces both history files from the live schema. Re-run it after changing a core table's columns. |
-| Tests | `tests/audit_trail_tests.sh` | 53 checks run as the real role logins; saved output in `tests/results/`. |
+| Tests | `tests/audit_trail_tests.sh` | 54 checks run as the real role logins; saved output in `tests/results/`. |
 
 ## History table shape
 
@@ -71,16 +71,16 @@ CALL sp_get_item_audit_trail('RET-2026-1001', NULL, 1, 25);  -- reference, line 
 
 - Result set 1: `TotalRows`, `Page`, `PageSize`, `TotalPages`, `IncludesFinancial`, for the grid's pager.
 - Result set 2: that page of rows, oldest first. Each page is a separate `LIMIT`/`OFFSET` query, so the grid never loads the full history.
-- Any active staff role may search. Amounts are returned only to Managers; Administrators and other roles get the redacted trail. This is the "redacted administrative view" the TDD promised.
+- Managers and Administrators may search (TDD §5: audit review). Amounts are returned only to Managers; Administrators get the redacted trail, which is the "redacted administrative view" the TDD promised. Operational roles use the non-financial operational views instead.
 - Errors: unknown reference, page < 1, page size outside 1–200, inactive login.
 
-Grants: `EXECUTE` on the procedure for all five roles; `SELECT` on `vw_item_audit_trail` for Manager only; `SELECT` on `vw_master_data_change_history` for Manager and Administrator.
+Grants: `EXECUTE` on the procedure for Manager and Administrator; `SELECT` on `vw_item_audit_trail` for Manager only; `SELECT` on `vw_master_data_change_history` for Manager and Administrator.
 
 ## Measured results (MySQL 8.4.11)
 
 From `tests/results/` and a scaled run with `database/06_performance/`:
 
-- 53 of 53 audit checks pass on a fresh build, covering the workflow as each role, history capture, transaction grouping, the grid, paging and redaction, permission denials, append-only guards, rollback, and audited admin changes.
+- 54 of 54 audit checks pass on a fresh build, covering the workflow as each role, history capture, transaction grouping, the grid, paging and redaction, permission denials, append-only guards, rollback, and audited admin changes.
 - One unit's trail with 100,006 units loaded: **0.17 ms**. MySQL pushes the `ReturnID` filter through the view's `UNION ALL`, CTEs and window function, so only that return's history is read.
 - Write cost: loading 100,000 units took 9.1 s with the history triggers versus 5.3 s without, since each row now also writes a version.
 
