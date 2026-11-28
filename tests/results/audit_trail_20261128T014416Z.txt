@@ -1,9 +1,9 @@
-# Audit trail tests  reference=AUD-20261128014311  database=wr_fb2  commit=9feb1f7
-# MySQL 8.4.11  run at 2026-11-28 01:43:11 UTC
+# Audit trail tests  reference=AUD-20261128014416  database=wr_e2e  commit=f64099b
+# MySQL 8.4.11  run at 2026-11-28 01:44:16 UTC
 
 ## 1. Workflow as role logins (repair -> post-repair pass -> restock, vendor claim, final move)
 PASS  Receiving registers a 2-line return
-      ReturnID=6
+      ReturnID=27
 PASS  Inspector records initial inspection (fail, grade C)
 PASS  Manager approves Repair with no amount (NULL)
 PASS  Manager assigns repair to technician
@@ -33,18 +33,18 @@ PASS  Every history version of this return belongs to a transaction that wrote a
 PASS  Separate procedure calls get different TransactionIDs (12 workflow transactions for unit 1)
 PASS  Final move: movement row, item update and ITEM_MOVED audit share one TransactionID
       transactions for this return (TransactionID -> AuditLog actions):
-        1495-5  ITEM_INTAKE, RETURN_REGISTERED
-        1498-5  INSPECTION_CREATED
-        1499-5  DISPOSITION_APPROVED
-        1500-5  REPAIR_ASSIGNED
-        1501-5  REPAIR_STARTED
-        1502-5  REPAIR_COMPLETED
-        1503-5  INSPECTION_CREATED
-        1504-5  DISPOSITION_APPROVED
-        1505-5  CLAIM_SUBMITTED
-        1507-5  CLAIM_APPROVED
-        1509-5  CLAIM_SETTLED
-        1512-5  ITEM_MOVED
+        1835-5  ITEM_INTAKE, RETURN_REGISTERED
+        1838-5  INSPECTION_CREATED
+        1839-5  DISPOSITION_APPROVED
+        1840-5  REPAIR_ASSIGNED
+        1841-5  REPAIR_STARTED
+        1842-5  REPAIR_COMPLETED
+        1843-5  INSPECTION_CREATED
+        1844-5  DISPOSITION_APPROVED
+        1845-5  CLAIM_SUBMITTED
+        1847-5  CLAIM_APPROVED
+        1849-5  CLAIM_SETTLED
+        1852-5  ITEM_MOVED
 
 ## 4. Audit trail grid (vw_item_audit_trail)
 PASS  Status changes of unit 1 appear in order: intake -> Restocked
@@ -58,7 +58,7 @@ PASS  Work order labor/parts and inspections are in the same trail
       manager total=56  administrator total=49  view rows=56  financial rows=7
 PASS  Manager sees every trail row, including amounts
 PASS  Administrator sees the redacted trail (no financial rows)
-PASS  Operational roles have no audit review (TDD capability matrix)  -> ERROR 1370 (42000): execute command denied to user 'wr_inspector01'@'localhost' for routine 'wr_fb2.sp_get_ite
+PASS  Operational roles have no audit review (TDD capability matrix)  -> ERROR 1370 (42000): execute command denied to user 'wr_inspector01'@'localhost' for routine 'wr_e2e.sp_get_ite
 PASS  Paging: page 1 returns 10 rows, last page (6) returns the remainder (6)
 PASS  Pages do not overlap or skip rows (56 distinct rows)
 PASS  Unknown reference is reported  -> ERROR 50004 (45004): Return reference not found
@@ -66,16 +66,16 @@ PASS  Oversized page is rejected  -> ERROR 50001 (45001): Page size must be betw
 PASS  History tables are not directly readable by roles  -> ERROR 1142 (42000): SELECT command denied to user 'wr_manager01'@'localhost' for table 'returnitemhistory'
 PASS  Non-managers cannot read the unredacted grid view  -> ERROR 1142 (42000): SELECT command denied to user 'wr_admin01'@'localhost' for table 'vw_item_audit_trail'
       first page as shown to the Administrator (redacted):
-        2026-11-28 01:43:11.263277	ReturnItem	Unit 6-1	Created	Product	NULL	LAP-100	Morgan Lee
-        2026-11-28 01:43:11.263277	ReturnItem	Unit 6-1	Created	Location	NULL	INT-01	Morgan Lee
-        2026-11-28 01:43:11.263277	ReturnItem	Unit 6-1	Created	ItemStatus	NULL	AwaitingInspection	Morgan Lee
-        2026-11-28 01:43:11.263277	ReturnItem	Unit 6-1	Created	ReturnReason	NULL	Defective	Morgan Lee
-        2026-11-28 01:43:11.263277	ReturnItem	Unit 6-1	Created	SerialNumber	NULL	AUD-20261128014311-SN1	Morgan Lee
-        2026-11-28 01:43:11.304342	Inspection	Inspection 1	Created	Notes	NULL	Battery does not hold charge	Avery Chen
-        2026-11-28 01:43:11.304342	Inspection	Inspection 1	Created	Inspector	NULL	Avery Chen	Avery Chen
-        2026-11-28 01:43:11.304342	Inspection	Inspection 1	Created	InspectedAt	NULL	2026-11-28 01:43:11.304342	Avery Chen
-        2026-11-28 01:43:11.304342	Inspection	Inspection 1	Created	ConditionGrade	NULL	C	Avery Chen
-        2026-11-28 01:43:11.304342	Inspection	Inspection 1	Created	InspectionType	NULL	Initial	Avery Chen
+        2026-11-28 01:44:16.118363	ReturnItem	Unit 27-1	Created	Product	NULL	LAP-100	Morgan Lee
+        2026-11-28 01:44:16.118363	ReturnItem	Unit 27-1	Created	Location	NULL	INT-01	Morgan Lee
+        2026-11-28 01:44:16.118363	ReturnItem	Unit 27-1	Created	ItemStatus	NULL	AwaitingInspection	Morgan Lee
+        2026-11-28 01:44:16.118363	ReturnItem	Unit 27-1	Created	ReturnReason	NULL	Defective	Morgan Lee
+        2026-11-28 01:44:16.118363	ReturnItem	Unit 27-1	Created	SerialNumber	NULL	AUD-20261128014416-SN1	Morgan Lee
+        2026-11-28 01:44:16.156560	Inspection	Inspection 17	Created	Notes	NULL	Battery does not hold charge	Avery Chen
+        2026-11-28 01:44:16.156560	Inspection	Inspection 17	Created	Inspector	NULL	Avery Chen	Avery Chen
+        2026-11-28 01:44:16.156560	Inspection	Inspection 17	Created	InspectedAt	NULL	2026-11-28 01:44:16.156560	Avery Chen
+        2026-11-28 01:44:16.156560	Inspection	Inspection 17	Created	ConditionGrade	NULL	C	Avery Chen
+        2026-11-28 01:44:16.156560	Inspection	Inspection 17	Created	InspectionType	NULL	Initial	Avery Chen
 
 ## 6. History is append-only (even for the setup account)
 PASS  UPDATE of a history value is blocked  -> ERROR 50500 (45500): ReturnItemHistory is append-only: only closing the open version is allowed
@@ -86,7 +86,7 @@ PASS  AuditLog UPDATE is still blocked  -> ERROR 50500 (45500): AuditLog is appe
 ## 7. Rollback leaves no history
 PASS  Intake with an unknown SKU on line 2 fails  -> ERROR 50001 (45001): Invalid or inactive product SKU
 PASS  Explicit ROLLBACK after a direct update  -> ERROR 1644 (45000): rolled back ok
-PASS  No history rows were left by the failed or rolled-back changes (24 = 24)
+PASS  No history rows were left by the failed or rolled-back changes (128 = 128)
 
 ## 8. Administration changes are audited
 PASS  Administrator renames location REP-01
@@ -98,4 +98,4 @@ PASS  Administrator removes and re-adds a role assignment
 PASS  Role removal and re-grant are both in the history
 
 ## Summary: 54 passed, 0 failed, 0 skipped
-Saved: /Users/rajdeepvilluri/Warehouse-Returns-and-Refurbishment-Tracking-System/tests/results/audit_trail_20261128T014311Z.txt
+Saved: /Users/rajdeepvilluri/Warehouse-Returns-and-Refurbishment-Tracking-System/tests/results/audit_trail_20261128T014416Z.txt

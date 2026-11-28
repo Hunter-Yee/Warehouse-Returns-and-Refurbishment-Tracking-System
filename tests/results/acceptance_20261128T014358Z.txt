@@ -1,5 +1,5 @@
-# Acceptance tests (FRD 2.1 AC-01..AC-11)  database=wr_fb  commit=9feb1f7
-# MySQL 8.4.11  run at 2026-11-28 01:42:37 UTC
+# Acceptance tests (FRD 2.1 AC-01..AC-11)  database=wr_e2e  commit=f64099b
+# MySQL 8.4.11  run at 2026-11-28 01:43:59 UTC
 
 ## AC-08  FR-10 RQ-03/RQ-05: return rate, N/A, turnaround, delayed items
 PASS  Manager adds products AC08-TOA and AC08-NOS (product maintenance is Manager-only)
@@ -33,8 +33,8 @@ PASS  Receiving cannot bypass the procedure with a direct INSERT (midterm findin
 ## AC-02 / AC-03 / AC-04  FR-03..06, FR-13/14: inspections, repairs, restock eligibility
 PASS  Initial inspection (no order): Fail, grade C
 PASS  Initial inspection has no work order link
-PASS  Receiving staff cannot approve a disposition  -> ERROR 1370 (42000): execute command denied to user 'wr_receiving01'@'localhost' for routine 'wr_fb.sp_approve_
-PASS  AC-03: an order cannot be assigned without Repair approval  -> ERROR 1370 (42000): execute command denied to user 'wr_technician01'@'localhost' for routine 'wr_fb.sp_assign_
+PASS  Receiving staff cannot approve a disposition  -> ERROR 1370 (42000): execute command denied to user 'wr_receiving01'@'localhost' for routine 'wr_e2e.sp_approve
+PASS  AC-03: an order cannot be assigned without Repair approval  -> ERROR 1370 (42000): execute command denied to user 'wr_technician01'@'localhost' for routine 'wr_e2e.sp_assign
 PASS  AC-03: Manager cannot assign before Repair approval  -> ERROR 50009 (45009): Item must be approved for repair
 PASS  Manager approves Repair with no amount
 PASS  Manager assigns order 1 to Taylor Reed
@@ -80,7 +80,7 @@ PASS  Forced error: Restock move of an unapproved item fails inside the trigger 
 PASS  Forced error rolled back movement, audit, history and location (3/75/60/2 = 3/75/60/2)
       killed transaction: session 1 runs sp_move_item; session 2 holds a lock that pauses it
       after the movement, item update and history are written but before the audit row and COMMIT
-      session 1 (connection 1369) is waiting with 4 uncommitted row changes
+      session 1 (connection 1732) is waiting with 4 uncommitted row changes
 PASS  Session 1 had written uncommitted changes before the kill (4 rows)
       before: 1 moves / 1 audit / 3 history / location 2
       after:  1 moves / 1 audit / 3 history / location 2
@@ -143,7 +143,7 @@ PASS  Recoding a referenced value is rejected  -> ERROR 50009 (45009): Reference
 PASS  Moving a value to another domain is rejected  -> ERROR 50009 (45009): Referenced or workflow reference values cannot be recoded or moved to another domain
 PASS  Deactivating a workflow value needed by open work is rejected  -> ERROR 50009 (45009): Workflow reference values are needed by enabled transitions and cannot be deactivated
 PASS  Deleting reference values is not permitted  -> ERROR 1142 (42000): DELETE command denied to user 'wr_admin01'@'localhost' for table 'referencevalue'
-PASS  Even the setup account cannot delete a referenced value (FK RESTRICT)  -> ERROR 1451 (23000): Cannot delete or update a parent row: a foreign key constraint fails (`wr_fb`.`returnitem`
+PASS  Even the setup account cannot delete a referenced value (FK RESTRICT)  -> ERROR 1451 (23000): Cannot delete or update a parent row: a foreign key constraint fails (`wr_e2e`.`returnitem
 PASS  Reference edits are audited (label edit with old and new value)
 
 ## Midterm feedback: accounts, owner, error classes, version stamp
@@ -152,7 +152,8 @@ PASS  All views, routines and triggers are owned by wr_owner (none by root)
 PASS  Role logins have no direct write access to any protected table
 PASS  A MySQL grant alone is not enough: with the app role removed, the procedure refuses (class 45003)  -> ERROR 50003 (45003): Technician login required
 PASS  Not-found errors use class 45004  -> ERROR 50004 (45004): Return reference not found
-SKIP  In-database version stamp (schema was not built by build/build_database.sh)
+PASS  In-database version stamp names the release, commit and every script
+      built from e2e-local-test @ f64099b, 18 scripts, MySQL 8.4.11, at 2026-11-28 01:43:52.098116
 
-## Summary: 122 passed, 0 failed, 1 skipped
-Saved: /Users/rajdeepvilluri/Warehouse-Returns-and-Refurbishment-Tracking-System/tests/results/acceptance_20261128T014237Z.txt
+## Summary: 123 passed, 0 failed, 0 skipped
+Saved: /Users/rajdeepvilluri/Warehouse-Returns-and-Refurbishment-Tracking-System/tests/results/acceptance_20261128T014358Z.txt
